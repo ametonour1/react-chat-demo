@@ -5,13 +5,58 @@ import '../App.css';
 export default function LoginSignup() {
   const [isLogin, setIsLogin] = useState(true);
 
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const toggleMode = () => setIsLogin(!isLogin);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // TODO: handle form submission
-    alert(`${isLogin ? "Logging in" : "Signing up"}...`);
-  };
+  const handleRegister = async () => {
+  const url = `${process.env.REACT_APP_API_URL}/users/register`;
+  const payload = { username, email, password };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const text = await response.text();
+    if (response.ok) alert(`Registered successfully: ${text}`);
+    else alert(`Register error: ${text}`);
+  } catch (err) {
+    alert(`Network error: ${err.message}`);
+  }
+};
+
+const handleLogin = async () => {
+  const url = `${process.env.REACT_APP_API_URL}/users/login`;
+  const payload = { email, password };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (response.ok) alert(`Login successful! Token: ${data.token}`);
+    else alert(`Login error: ${data.message || 'Invalid credentials'}`);
+  } catch (err) {
+    alert(`Network error: ${err.message}`);
+  }
+};
+
+
+  
+const handleSubmit = (e) => {
+  e.preventDefault();
+  if (isLogin) {
+    handleLogin();
+  } else {
+    handleRegister();
+  }
+};
 
   return (
     <div className="container">
@@ -21,10 +66,11 @@ export default function LoginSignup() {
         {!isLogin && (
           <input
             type="text"
-            placeholder="Full Name"
+            placeholder="Username"
             className="input"
             required
             autoComplete="name"
+            onChange={(e) => setUsername(e.target.value)}
           />
         )}
 
@@ -34,6 +80,7 @@ export default function LoginSignup() {
           className="input"
           required
           autoComplete="email"
+          onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
@@ -43,6 +90,7 @@ export default function LoginSignup() {
           required
           autoComplete={isLogin ? "current-password" : "new-password"}
           minLength={6}
+          onChange={(e) => setPassword(e.target.value)}
         />
 
         <button type="submit" className="btn" style={{ width: "100%" }}>
