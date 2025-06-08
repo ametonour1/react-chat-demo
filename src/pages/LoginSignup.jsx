@@ -14,11 +14,14 @@ export default function LoginSignup() {
   const handleRegister = async () => {
   const url = `${process.env.REACT_APP_API_URL}/users/register`;
   const payload = { username, email, password };
+  const lang = "es"
 
   try {
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json",
+                 "Accept-Language": lang || "en" 
+       },
       body: JSON.stringify(payload),
     });
     const text = await response.text();

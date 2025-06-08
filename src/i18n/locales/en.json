@@ -1,0 +1,9 @@
+{
+  "welcome": "Welcome",
+  "signup_success": "Registration successful",
+  "signup_error": "Something went wrong",
+    "verifySuccessTitle": "Verification Successful",
+  "verifySuccessMessage": "Your account has been verified successfully!",
+  "verifyFailedTitle": "Verification Failed",
+  "verifyFailedMessage": "We couldn't verify your account. Please try again or contact support."
+}
