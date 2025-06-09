@@ -35,6 +35,8 @@ export default function LoginSignup({ isLogin: isLoginProp = true }) {
         state: {
           message: data.message,
           success: true,
+          lang:lang,
+          email:email
         },
       });}
     else {setErrorMessage(data.message);
