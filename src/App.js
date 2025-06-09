@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import LoginSignup from "./pages/LoginSignup";
 import VerifySuccess from "./pages/VerifySuccess";
 import VerifyFailed from "./pages/VerifyFailed";
+import RegisterResult from './pages/RegisterResult';
 import './i18n'; 
 
 
@@ -14,10 +15,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<LoginSignup />} />
-        <Route path="/signup" element={<LoginSignup />} />
+        <Route path="/login" element={<LoginSignup isLogin={true} />} />
+        <Route path="/signup" element={<LoginSignup isLogin={false} />} />
         <Route path="/verify-success" element={<VerifySuccess />} />
         <Route path="/verify-failed" element={<VerifyFailed />} />
+        <Route path="/register-result" element={<RegisterResult />} />
       </Routes>
     </Router>
   );

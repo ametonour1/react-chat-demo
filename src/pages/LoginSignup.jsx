@@ -1,15 +1,19 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import '../App.css';
 
 
-export default function LoginSignup() {
-  const [isLogin, setIsLogin] = useState(true);
+export default function LoginSignup({ isLogin: isLoginProp = true }) {
+  const [isLogin, setIsLogin] = useState(isLoginProp);
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
 
   const toggleMode = () => setIsLogin(!isLogin);
+  const navigate = useNavigate();
 
   const handleRegister = async () => {
   const url = `${process.env.REACT_APP_API_URL}/users/register`;
@@ -24,9 +28,18 @@ export default function LoginSignup() {
        },
       body: JSON.stringify(payload),
     });
-    const text = await response.text();
-    if (response.ok) alert(`Registered successfully: ${text}`);
-    else alert(`Register error: ${text}`);
+    //const text = await response.text();
+    const data = await response.json();
+    console.log("data",data)
+    if (response.ok) { navigate("/register-result", {
+        state: {
+          message: data.message,
+          success: true,
+        },
+      });}
+    else {setErrorMessage(data.message);
+      console.log("error",data)
+    }
   } catch (err) {
     alert(`Network error: ${err.message}`);
   }
@@ -99,6 +112,7 @@ const handleSubmit = (e) => {
         <button type="submit" className="btn" style={{ width: "100%" }}>
           {isLogin ? "Sign In" : "Sign Up"}
         </button>
+        {errorMessage && <div className="error-message">{errorMessage}</div>}
       </form>
 
       <p className="text" style={{ marginTop: "20px" }}>

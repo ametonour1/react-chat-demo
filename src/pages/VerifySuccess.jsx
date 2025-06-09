@@ -1,6 +1,6 @@
 import React from "react";
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 function useQuery() {
@@ -17,10 +17,18 @@ const VerifySuccess = () => {
     i18n.changeLanguage(lang); 
   }, [lang, i18n]);
 
+  const navigate = useNavigate();
+
+  const handleLoginRedirect = () => {
+    navigate("/login");
+  };
   return (
-     <div className="page-container">
+     <div className="page-container container">
       <h1>{t("verifySuccessTitle")}</h1>
       <p>{t("verifySuccessMessage")}</p>
+        <button onClick={handleLoginRedirect} className="btn btn-primary mt-3">
+        {t("goToLogin")}
+      </button>
     </div>
   );
 };
