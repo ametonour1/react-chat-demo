@@ -7,6 +7,8 @@ import LoginSignup from "./pages/LoginSignup";
 import VerifySuccess from "./pages/VerifySuccess";
 import VerifyFailed from "./pages/VerifyFailed";
 import RegisterResult from './pages/RegisterResult';
+import PrivateRoute from "./routes/PrivateRoute";
+import Dashboard from "./pages/Dashboard";
 import './i18n'; 
 
 
@@ -20,6 +22,14 @@ function App() {
         <Route path="/verify-success" element={<VerifySuccess />} />
         <Route path="/verify-failed" element={<VerifyFailed />} />
         <Route path="/register-result" element={<RegisterResult />} />
+         <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
       </Routes>
     </Router>
   );
