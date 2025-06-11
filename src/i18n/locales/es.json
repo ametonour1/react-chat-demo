@@ -1,0 +1,16 @@
+{
+  "welcome": "Bienvenido",
+  "signup_success": "Registro exitoso",
+  "signup_error": "Algo salió mal",
+    "verifySuccessTitle": "Verificación Exitosa",
+  "verifySuccessMessage": "¡Tu cuenta ha sido verificada con éxito!",
+  "verifyFailedTitle": "Verificación Fallida",
+  "verifyFailedMessage": "No pudimos verificar tu cuenta. Por favor, inténtalo de nuevo o contacta con soporte.",
+    "goToLogin": "Ir a Iniciar Sesión",
+      "resendVerification": "Reenviar correo de verificación",
+  "resending": "Enviando...",
+  "user.verification.emailSent": "Correo de verificación reenviado.",
+  "error.network": "Error de red. Inténtalo de nuevo.",
+  "error.unknown": "Ocurrió un error desconocido.",
+  "error.missingEmail": "Falta el correo electrónico. No se puede reenviar."
+}

@@ -1,0 +1,16 @@
+{
+  "welcome": "Welcome",
+  "signup_success": "Registration successful",
+  "signup_error": "Something went wrong",
+    "verifySuccessTitle": "Verification Successful",
+  "verifySuccessMessage": "Your account has been verified successfully!",
+  "verifyFailedTitle": "Verification Failed",
+  "verifyFailedMessage": "We couldn't verify your account. Please try again or contact support.",
+  "goToLogin": "Go to Login",
+    "resendVerification": "Resend verification email",
+  "resending": "Sending...",
+  "user.verification.emailSent": "Verification email sent again.",
+  "error.network": "Network error. Please try again.",
+  "error.unknown": "An unknown error occurred.",
+  "error.missingEmail": "Email is missing. Cannot resend."
+}
