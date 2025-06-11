@@ -9,11 +9,16 @@ import VerifyFailed from "./pages/VerifyFailed";
 import RegisterResult from './pages/RegisterResult';
 import PrivateRoute from "./routes/PrivateRoute";
 import Dashboard from "./pages/Dashboard";
+import LanguageSelector from "./components/LanguageSelector";
 import './i18n'; 
 
 
 function App() {
   return (
+    <>
+      <header style={{ position: "absolute", top: 10, right: 10 }}>
+        <LanguageSelector />
+      </header>
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -32,6 +37,7 @@ function App() {
           />
       </Routes>
     </Router>
+    </>
   );
 }
 
