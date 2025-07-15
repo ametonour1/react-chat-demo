@@ -12,5 +12,10 @@
   "user.verification.emailSent": "Το email επαλήθευσης εστάλη ξανά.",
   "error.network": "Σφάλμα δικτύου. Παρακαλώ δοκιμάστε ξανά.",
   "error.unknown": "Παρουσιάστηκε άγνωστο σφάλμα.",
-  "error.missingEmail": "Λείπει το email. Δεν είναι δυνατή η επαναποστολή."
+  "error.missingEmail": "Λείπει το email. Δεν είναι δυνατή η επαναποστολή.",
+    "resetPassword.title": "Επαναφορά Κωδικού",
+  "resetPassword.newPassword": "Νέος κωδικός",
+  "resetPassword.updatePassword": "Ενημέρωση κωδικού",
+    "resetPassword.enterEmail": "Εισάγετε το email σας",
+  "resetPassword.sendResetLink": "Αποστολή συνδέσμου επαναφοράς"
 }

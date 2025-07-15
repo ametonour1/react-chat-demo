@@ -7,9 +7,11 @@ import LoginSignup from "./pages/LoginSignup";
 import VerifySuccess from "./pages/VerifySuccess";
 import VerifyFailed from "./pages/VerifyFailed";
 import RegisterResult from './pages/RegisterResult';
+import ResetPassword from "./pages/ResetPassword"
 import PrivateRoute from "./routes/PrivateRoute";
 import Dashboard from "./pages/Dashboard";
 import LanguageSelector from "./components/LanguageSelector";
+import UpdatePassword from './pages/UpdatePassword';
 import './i18n'; 
 
 
@@ -27,6 +29,10 @@ function App() {
         <Route path="/verify-success" element={<VerifySuccess />} />
         <Route path="/verify-failed" element={<VerifyFailed />} />
         <Route path="/register-result" element={<RegisterResult />} />
+        <Route path="/password-reset" element={<ResetPassword />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
+
+
          <Route
             path="/dashboard"
             element={
