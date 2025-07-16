@@ -12,5 +12,10 @@
   "user.verification.emailSent": "Verification email sent again.",
   "error.network": "Network error. Please try again.",
   "error.unknown": "An unknown error occurred.",
-  "error.missingEmail": "Email is missing. Cannot resend."
+  "error.missingEmail": "Email is missing. Cannot resend.",
+  "resetPassword.title": "Reset Your Password",
+  "resetPassword.newPassword": "New Password",
+  "resetPassword.updatePassword": "Update Password",
+  "resetPassword.enterEmail":"Enter your Email",
+  "resetPassword.sendResetLink":"Send Reset Link"
 }

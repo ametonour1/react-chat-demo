@@ -12,5 +12,10 @@
   "user.verification.emailSent": "Correo de verificación reenviado.",
   "error.network": "Error de red. Inténtalo de nuevo.",
   "error.unknown": "Ocurrió un error desconocido.",
-  "error.missingEmail": "Falta el correo electrónico. No se puede reenviar."
+  "error.missingEmail": "Falta el correo electrónico. No se puede reenviar.",
+    "resetPassword.title": "Restablecer tu contraseña",
+  "resetPassword.newPassword": "Nueva contraseña",
+  "resetPassword.updatePassword": "Actualizar contraseña",
+    "resetPassword.enterEmail": "Introduce tu correo electrónico",
+  "resetPassword.sendResetLink": "Enviar enlace de restablecimiento"
 }

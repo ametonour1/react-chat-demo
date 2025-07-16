@@ -106,6 +106,10 @@ const handleResendEmail = async () => {
   }
 };
 
+const handleForgotPassword =  async (email) => {
+ 
+  navigate("/password-reset");
+};
 
   
 const handleSubmit = (e) => {
@@ -169,7 +173,20 @@ const handleSubmit = (e) => {
 )}
 {resendMessage && <p>{resendMessage}</p>}
       </form>
-
+      {isLogin && (
+  <p
+    className="text" 
+    style={{ marginTop: "20px" }}
+  >Forgot Password?
+    <span
+      className="btn btn-secondary"
+      style={{ cursor: "pointer", padding: "5px 10px", marginLeft:"10px",fontSize: "14px" }}
+      onClick={handleForgotPassword}
+    >
+      Reset Password
+    </span>
+  </p>
+)}
       <p className="text" style={{ marginTop: "20px" }}>
         {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
         <span

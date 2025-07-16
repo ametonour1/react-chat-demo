@@ -28,13 +28,16 @@ body {
 
 /* === Containers === */
 .container {
-  max-width: 500px;
-  margin: 80px auto;
+ max-width: 90vw;             /* Takes 90% of viewport width */
+  height: 90vh;                /* Optional: take 90% of viewport height */
+  margin: 40px auto;           /* Less vertical margin */
   padding: 20px;
   background: var(--background-light);
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
   text-align: center;
+  display: flex;               /* Optional: if you want layout inside */
+  flex-direction: column;  
 }
 
 .full-height-container {
