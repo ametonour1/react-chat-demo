@@ -8,6 +8,8 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem("authToken") || null);
   const [stompClient, setStompClient] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [recentChats, setRecentChats] = useState([]);
+  
 
   const userId = token ? parseUserIdFromToken(token) : null;
 
@@ -24,6 +26,8 @@ export function AuthProvider({ children }) {
     const socket = new SockJS("http://localhost:8080/ws");
     const client = Stomp.over(socket);
 
+    let heartbeatIntervalId;
+
     client.connect({}, () => {
       console.log("WebSocket connected");
 
@@ -34,11 +38,23 @@ export function AuthProvider({ children }) {
       client.subscribe(`/topic/messages/${userId}`, (msg) => {
         setMessages((prev) => [...prev, JSON.parse(msg.body)]);
       });
+
+      client.subscribe(`/topic/recent-chats/${userId}`, (message) => {
+       
+        const updatedChats = JSON.parse(message.body);
+         console.log("websocet call:", updatedChats)
+        setRecentChats(updatedChats); // this updates the state and refreshes the UI
+      });
+
+      heartbeatIntervalId = setInterval(() => {
+      client.send("/app/heartbeat", {}, JSON.stringify({ userId }));
+    }, 45000);
     });
 
     setStompClient(client);
 
     return () => {
+      if (heartbeatIntervalId) clearInterval(heartbeatIntervalId);
       if (client) {
         client.disconnect();
         console.log("WebSocket disconnected");
@@ -64,7 +80,7 @@ export function AuthProvider({ children }) {
 
 
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, isAuthenticated: !!token, stompClient }}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, recentChats, setRecentChats, isAuthenticated: !!token, stompClient }}>
       {children}
     </AuthContext.Provider>
   );

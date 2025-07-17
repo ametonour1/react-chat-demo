@@ -5,13 +5,14 @@ const ChatWindow = ({ selectedUser, messages, setMessages }) => {
   const [input, setInput] = useState("");
     const { stompClient } = useAuth();
     const { userId } = useAuth();
+    const recipientId = parseInt(selectedUser.userId)
 
   
 
   const sendMessage = () => {
     const msg = {
       senderId:userId,
-      recipientId: selectedUser.id,
+      recipientId: recipientId,
       content: input,
       timestamp: Date.now(),
     };
@@ -19,7 +20,7 @@ const ChatWindow = ({ selectedUser, messages, setMessages }) => {
     stompClient.send("/app/chat.send", {}, JSON.stringify(msg));
     setMessages([...messages, { ...msg, sender: "me" }]);
     setInput("");
-    console.log("user",userId,"sendsTo",selectedUser.id)
+    console.log("user",userId,"sendsTo",recipientId)
   };
 
   return (
