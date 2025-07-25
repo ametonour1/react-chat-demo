@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
     }
   console.log("userId",userId)
 
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS(`http://localhost:8080/ws?userId=${userId}`);
     const client = Stomp.over(socket);
 
     let heartbeatIntervalId;
@@ -36,15 +36,55 @@ export function AuthProvider({ children }) {
 
       // Subscribe to personal topic for incoming messages
       client.subscribe(`/topic/messages/${userId}`, (msg) => {
+        //console.log(JSON.parse(msg.body))
         setMessages((prev) => [...prev, JSON.parse(msg.body)]);
       });
+
+  
+      client.subscribe('/topic/status/' + userId, function(message) {
+      const statusUpdate = JSON.parse(message.body);
+      console.log("User", statusUpdate.userId, "is online:", statusUpdate.online);
+       setRecentChats(prevChats =>
+          prevChats.map(chat =>
+            chat.userId === statusUpdate.userId
+              ? { ...chat, online: statusUpdate.online }
+              : chat
+          ))
+  });
 
       client.subscribe(`/topic/recent-chats/${userId}`, (message) => {
        
         const updatedChats = JSON.parse(message.body);
-         console.log("websocet call:", updatedChats)
+        // console.log("websocet call:", updatedChats)
         setRecentChats(updatedChats); // this updates the state and refreshes the UI
       });
+
+
+      client.subscribe(`/topic/message-status/${userId}`, (message) => {
+      const statusUpdate = JSON.parse(message.body); // { messageId, status }
+      console.log("Message status update received:", statusUpdate);
+
+      // Update messages state: find the message and update its status
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === statusUpdate.messageId
+            ? { ...msg, status: statusUpdate.status }
+            : msg
+        )
+      );
+
+      // If you want, update recent chats' last message status as well
+      // setRecentChats(prevChats =>
+      //   prevChats.map(chat => {
+      //     if (chat.lastMessageId === statusUpdate.messageId) {
+      //       return { ...chat, lastMessageStatus: statusUpdate.status };
+      //     }
+      //     return chat;
+      //   })
+      // );
+    });
+
+      
 
       heartbeatIntervalId = setInterval(() => {
       client.send("/app/heartbeat", {}, JSON.stringify({ userId }));
@@ -62,6 +102,7 @@ export function AuthProvider({ children }) {
     };
   }, [token, userId]);
 
+
   const login = (token) => {
     localStorage.setItem("authToken", token);
     setToken(token);
@@ -78,6 +119,9 @@ export function AuthProvider({ children }) {
   return userId;
 }
 
+useEffect(() => {
+  console.log("Messages updated:", messages);
+}, [messages]);
 
   return (
     <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, recentChats, setRecentChats, isAuthenticated: !!token, stompClient }}>
