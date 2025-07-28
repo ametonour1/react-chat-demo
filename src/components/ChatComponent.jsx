@@ -8,7 +8,38 @@ import "../css/chat.css"
 const ChatComponent = ({recentChats}) => {
   const [selectedUser, setSelectedUser] = useState(null);
     const { messages, setMessages } = useAuth(); 
+    const { stompClient } = useAuth();
     const {token} = useAuth()
+    const { userId } = useAuth();
+    
+    function requestMessages(offset) {
+      stompClient.send(
+        "/app/get-cached-messages",
+        {},
+        JSON.stringify({
+          senderId: userId,
+          recipientId: selectedUser.userId,
+          offset: offset,
+          limit: MESSAGE_LIMIT,
+        })
+      );
+}
+
+    useEffect(() => {
+  if (!selectedUser) return;
+
+  setMessages([]); // Clear old messages
+
+  // Ask server to send cached messages for this chat
+  stompClient.send(
+    "/app/get-cached-messages", // your controller handles this
+    {},
+    JSON.stringify({
+      senderId: userId,
+      recipientId: selectedUser.userId,
+    })
+  );
+}, [selectedUser]);
 
     
   return (

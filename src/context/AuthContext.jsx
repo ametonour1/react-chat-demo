@@ -36,8 +36,9 @@ export function AuthProvider({ children }) {
 
       // Subscribe to personal topic for incoming messages
       client.subscribe(`/topic/messages/${userId}`, (msg) => {
-        //console.log(JSON.parse(msg.body))
         setMessages((prev) => [...prev, JSON.parse(msg.body)]);
+        //console.log(messages,"messages")
+
       });
 
   
@@ -52,6 +53,17 @@ export function AuthProvider({ children }) {
           ))
   });
 
+      client.subscribe(`/topic/cached-messages/${userId}`, (msg) => {
+      const cachedMessages = JSON.parse(msg.body);
+        // Inject "me" flag based on senderId === current user's ID
+      const enrichedMessages = cachedMessages.map((m) => ({
+        ...m,
+        me: m.senderId === userId,
+      }));
+
+      setMessages(enrichedMessages);
+      console.log(enrichedMessages,"chahed messages")
+    });
       client.subscribe(`/topic/recent-chats/${userId}`, (message) => {
        
         const updatedChats = JSON.parse(message.body);
