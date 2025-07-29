@@ -7,6 +7,9 @@ import ChatWindow from './ChatWindow';
 import "../css/chat.css"
 const ChatComponent = ({recentChats}) => {
   const [selectedUser, setSelectedUser] = useState(null);
+  const [messageOffset, setMessageOffset] = useState(0);
+  const MESSAGE_LIMIT = 10; // same as backend limit
+
     const { messages, setMessages } = useAuth(); 
     const { stompClient } = useAuth();
     const {token} = useAuth()
@@ -25,20 +28,25 @@ const ChatComponent = ({recentChats}) => {
       );
 }
 
+const handleScroll = (e) => {
+  const scrollTop = e.target.scrollTop;
+  if (scrollTop === 0) { // scrolled to top
+    // Load next batch
+      console.log("scroll event fired")
+    requestMessages(messageOffset + MESSAGE_LIMIT);
+    setMessageOffset(messageOffset + MESSAGE_LIMIT);
+  }
+};
+
+
     useEffect(() => {
   if (!selectedUser) return;
 
   setMessages([]); // Clear old messages
 
-  // Ask server to send cached messages for this chat
-  stompClient.send(
-    "/app/get-cached-messages", // your controller handles this
-    {},
-    JSON.stringify({
-      senderId: userId,
-      recipientId: selectedUser.userId,
-    })
-  );
+  setMessageOffset(0); // Reset offset for new chat
+
+  requestMessages(0); // Load first batch
 }, [selectedUser]);
 
     
@@ -48,12 +56,15 @@ const ChatComponent = ({recentChats}) => {
         <SearchUser setSelectedUser={setSelectedUser} />
         <ChatList onSelectUser={setSelectedUser} recentChats={recentChats} />
       </div>
-      <div className="w-3/4">
+      <div className="w-3/4 min-h-0">
         {selectedUser ? (
           <ChatWindow
             selectedUser={selectedUser}
             messages={messages}
             setMessages={setMessages}
+            setMessageOffset={setMessageOffset}
+            requestMessages={requestMessages}
+            handleScroll={handleScroll}
           />
         ) : (
           <div className="p-4">Select a user to chat</div>

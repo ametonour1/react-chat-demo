@@ -1,7 +1,7 @@
 // ChatWindow.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-const ChatWindow = ({ selectedUser, messages, setMessages }) => {
+const ChatWindow = ({ selectedUser, messages, setMessages,requestMessages,setMessageOffset,handleScroll }) => {
   const [input, setInput] = useState("");
     const { stompClient } = useAuth();
     const { userId } = useAuth();
@@ -35,6 +35,7 @@ const handleReadMessage = (messageId) => {
     console.log("Sent read event for message", messageId);
   }
 };
+
 
 // useEffect(() => {
 //   if (!messages || messages.length === 0) return;
@@ -71,8 +72,8 @@ useEffect(() => {
   }
 }, [messages]);
   return (
-    <div className="flex flex-col h-full p-4 border-red-300">
-      <div className="flex-1 overflow-y-auto">
+    <div className="flex flex-col h-full max-h-screen p-4 border border-red-300" >
+      <div className="flex-1 overflow-y-auto min-h-0 pt-10" onScroll={handleScroll } >
         {messages.map((m, idx) => {
           const isLastSentMessage = idx === lastSentMsgIndex;
           return (

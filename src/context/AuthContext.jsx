@@ -61,7 +61,7 @@ export function AuthProvider({ children }) {
         me: m.senderId === userId,
       }));
 
-      setMessages(enrichedMessages);
+      setMessages(prev => [...enrichedMessages, ...prev]);
       console.log(enrichedMessages,"chahed messages")
     });
       client.subscribe(`/topic/recent-chats/${userId}`, (message) => {
