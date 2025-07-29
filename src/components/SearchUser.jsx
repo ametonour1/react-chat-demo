@@ -36,6 +36,7 @@ const SearchUser = ({ setSelectedUser }) => {
   }, [search, debouncedSearch]);
 
   const handleSelectUser = (user) => {
+    console.log("user",user)
     setSelectedUser(user);
     setSearch(user.username); // update input to selected username
     setResults([]); // clear dropdown
