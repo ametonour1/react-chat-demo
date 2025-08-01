@@ -12,6 +12,10 @@ import PrivateRoute from "./routes/PrivateRoute";
 import Dashboard from "./pages/Dashboard";
 import LanguageSelector from "./components/LanguageSelector";
 import UpdatePassword from './pages/UpdatePassword';
+import CreateEncryptionKeys from './pages/CreateEncryptionKeys';
+import RecoverEncryptionKeys from './pages/RecoverEncryptionKeys';
+
+
 import './i18n'; 
 
 
@@ -41,6 +45,10 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          <Route path="/setup-encryption" element={<PrivateRoute><CreateEncryptionKeys /></PrivateRoute>} />
+          <Route path="/recover-encryption" element={<PrivateRoute><RecoverEncryptionKeys /></PrivateRoute>} />
+
       </Routes>
     </Router>
     </>
