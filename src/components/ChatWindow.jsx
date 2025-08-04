@@ -1,20 +1,38 @@
 // ChatWindow.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
+import { getPublicKey } from "../helpers/indexedDbUtils";
+import {encryptMessageDual} from '../helpers/messageEncryptionHelpers';
 const ChatWindow = ({ selectedUser, messages, setMessages,requestMessages,setMessageOffset,handleScroll }) => {
   const [input, setInput] = useState("");
     const { stompClient } = useAuth();
     const { userId } = useAuth();
+    
     const recipientId = parseInt(selectedUser.userId)
 
   
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
+    const senderPublicKey = await getPublicKey(userId)
+    const reciverPublicKey = selectedUser.publicKey;
+
+
+    console.log("selctedUser",selectedUser)
+     const {
+      encryptedContent,
+      encryptedAESKeyForRecipient,
+      encryptedAESKeyForSender,
+      iv,
+    } = await encryptMessageDual(input, reciverPublicKey, senderPublicKey);
+
     const msg = {
       senderId:userId,
       recipientId: recipientId,
-      content: input,
+      content: encryptedContent,
       timestamp: Date.now(),
+      encryptedAESKeyForRecipient,
+      encryptedAESKeyForSender,
+      iv,
     };
     // use WebSocket client to send
     stompClient.send("/app/chat.send", {}, JSON.stringify(msg));

@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
   base64ToUint8Array
 } from "../helpers/cryptoHelpers";
 import { fetchUserKeys } from "../helpers/encryptionService";
-import {savePrivateKey} from "../helpers/indexedDbUtils"
+import {savePrivateKey, savePublicKey} from "../helpers/indexedDbUtils"
 import { useNavigate } from "react-router-dom";
 
 
@@ -24,7 +24,7 @@ export default function RecoverEncryptionKeys() {
     try {
 
 
-      const { privateKeyEncrypted, iv, salt } = await fetchUserKeys(userId, token);
+      const { privateKeyEncrypted, iv, salt, publicKey } = await fetchUserKeys(userId, token);
 
       const decodedSalt = base64ToUint8Array(salt);
       const derivedKey = await deriveKey(pin, decodedSalt);
@@ -32,6 +32,7 @@ export default function RecoverEncryptionKeys() {
 
       setDecryptedPrivateKey(decrypted);
       savePrivateKey(userId,decrypted)
+      savePublicKey(userId,publicKey)
       setStatus("✅ Private key recovered successfully.");
         setTimeout(() => {
         navigate("/dashboard"); // or whatever your route is

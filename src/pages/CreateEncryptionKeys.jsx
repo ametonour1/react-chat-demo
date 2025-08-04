@@ -8,7 +8,7 @@ import {
   bufferToBase64,
   exportPublicKeyToBase64
 } from "../helpers/cryptoHelpers";
-import { savePrivateKey } from '../helpers/indexedDbUtils';
+import { savePrivateKey, savePublicKey } from '../helpers/indexedDbUtils';
 import { useAuth } from "../context/AuthContext";
 import { storeEncryptionKey } from "../helpers/encryptionService";
 import { useNavigate } from "react-router-dom";
@@ -63,6 +63,7 @@ function CreateEncryptionKeys() {
 
       setPublicKeyInfo(publicKey);
       savePrivateKey(userId,decryptedPrivateKey)
+      savePublicKey(userId,publicKeyBase64)
 
       setStatus("✅ Key pair generated and private key encrypted successfully!");
        setTimeout(() => {
