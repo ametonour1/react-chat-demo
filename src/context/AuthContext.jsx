@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState ,useRef} from "react";
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
 import { jwtDecode } from 'jwt-decode';
+import { getPrivateKey } from "../helpers/indexedDbUtils";
+import { decryptMessage } from "../helpers/messageEncryptionHelpers";
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
@@ -9,6 +11,8 @@ export function AuthProvider({ children }) {
   const [stompClient, setStompClient] = useState(null);
   const [messages, setMessages] = useState([]);
   const [recentChats, setRecentChats] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const selectedUserRef = useRef(selectedUser);
   
 
   const userId = token ? parseUserIdFromToken(token) : null;
@@ -36,9 +40,57 @@ export function AuthProvider({ children }) {
 
       // Subscribe to personal topic for incoming messages
       client.subscribe(`/topic/messages/${userId}`, (msg) => {
-        setMessages((prev) => [...prev, JSON.parse(msg.body)]);
-        //console.log(messages,"messages")
 
+        (async () => {
+        const data = JSON.parse(msg.body);
+
+        const {
+          senderId,
+          recipientId,
+          content,
+          encryptedAESKeyForRecipient,
+          encryptedAESKeyForSender,
+          iv,
+          me
+        } = data;
+      // if (!me   && senderId !== selectedUser?.userId) {
+      //     // Ignore messages from other users
+      //     return;
+      //   }
+      const currentSelectedUser = selectedUserRef.current;
+     if (
+          !me &&
+          senderId !== parseInt(currentSelectedUser?.userId) &&
+          recipientId !== parseInt(currentSelectedUser?.userId)
+        ) {
+          return; // ignore irrelevant messages
+        }
+    console.log("currentUser",userId,"isMe",me,"senderId",senderId,"recipientId",recipientId,"selcetedUser",currentSelectedUser.userId)
+    const encryptedAESKey = me ? encryptedAESKeyForSender : encryptedAESKeyForRecipient;
+   
+
+
+    const privateKey = await getPrivateKey(userId); // from IndexedDB
+ 
+
+    const decryptedMessage = await decryptMessage(
+      content,
+      encryptedAESKey,
+      iv,
+      privateKey
+    );
+    //console.log("decrtyptedMessease",decryptMessage)
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        ...data,
+        content: decryptedMessage, // inject decrypted message
+      }
+    ]);
+  })().catch((err) => {
+    console.error("Decryption failed:", err);
+  });
       });
 
   
@@ -54,15 +106,34 @@ export function AuthProvider({ children }) {
   });
 
       client.subscribe(`/topic/cached-messages/${userId}`, (msg) => {
-      const cachedMessages = JSON.parse(msg.body);
-        // Inject "me" flag based on senderId === current user's ID
-      const enrichedMessages = cachedMessages.map((m) => ({
-        ...m,
-        me: m.senderId === userId,
-      }));
+     (async () => {
+    const cachedMessages = JSON.parse(msg.body);
 
-      setMessages(prev => [...enrichedMessages, ...prev]);
-      console.log(enrichedMessages,"chahed messages")
+    // Load private key once per batch
+    const privateKey = await getPrivateKey(userId);
+
+    // Process all messages asynchronously
+    const enrichedMessages = await Promise.all(
+      cachedMessages.map(async (m) => {
+        const me = m.senderId === userId;
+        const encryptedAESKey = me ? m.encryptedAESKeyForSender : m.encryptedAESKeyForRecipient;
+
+        // Decrypt the content
+        const decryptedContent = await decryptMessage(m.content, encryptedAESKey, m.iv, privateKey);
+
+        return {
+          ...m,
+          me,
+          content: decryptedContent,
+        };
+      })
+    );
+
+    // Now update your state or UI with decrypted messages
+    setMessages(enrichedMessages);
+  })().catch((err) => {
+    console.error("Error decrypting cached messages:", err);
+  });
     });
       client.subscribe(`/topic/recent-chats/${userId}`, (message) => {
        
@@ -134,9 +205,12 @@ export function AuthProvider({ children }) {
 useEffect(() => {
   console.log("Messages updated:", messages);
 }, [messages]);
+useEffect(() => {
+  selectedUserRef.current = selectedUser;
+}, [selectedUser]);
 
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, recentChats, setRecentChats, isAuthenticated: !!token, stompClient }}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser }}>
       {children}
     </AuthContext.Provider>
   );

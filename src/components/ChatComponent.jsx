@@ -6,7 +6,7 @@ import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
 import "../css/chat.css"
 const ChatComponent = ({recentChats}) => {
-  const [selectedUser, setSelectedUser] = useState(null);
+  const { selectedUser, setSelectedUser } = useAuth();
   const [messageOffset, setMessageOffset] = useState(0);
   const MESSAGE_LIMIT = 10; // same as backend limit
 
