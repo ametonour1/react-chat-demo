@@ -297,3 +297,20 @@ body {
 .error-message { 
   color: red; 
 }
+@keyframes blink {
+  0%, 50%, 100% {
+    opacity: 1;
+  }
+  25%, 75% {
+    opacity: 0;
+  }
+}
+
+.blinking-dot {
+  animation: blink 1.5s infinite;
+  background-color: red;
+  border-radius: 50%;
+  height: 10px;
+  width: 10px;
+  margin-left: 6px;
+}

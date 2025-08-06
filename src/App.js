@@ -1,6 +1,6 @@
 
 import './App.css';
-import React from "react";
+import React,{useEffect} from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import LoginSignup from "./pages/LoginSignup";
@@ -20,6 +20,22 @@ import './i18n';
 
 
 function App() {
+
+   useEffect(() => {
+    const enableAudio = () => {
+      const audio = new Audio('/notification.mp3');
+      audio.play().then(() => {
+        console.log('Audio unlocked');
+      }).catch(() => {
+        console.log('Still blocked, will try later');
+      });
+
+      // Remove event listener after first interaction
+      document.removeEventListener('click', enableAudio);
+    };
+
+    document.addEventListener('click', enableAudio);
+  }, []);
   return (
     <>
       <header style={{ position: "absolute", top: 10, right: 10 }}>

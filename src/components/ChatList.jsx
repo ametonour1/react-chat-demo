@@ -22,8 +22,15 @@ const ChatList = ({ onSelectUser, recentChats }) => {
                 }`}
               ></span>
 
-              {/* Username */}
-              {chatUser.username}
+               {/* Username */}
+              <span className={chatUser.hasUnreadMessage ? "font-bold" : ""}>
+                {chatUser.username}
+              </span>
+
+              {/* Blinking unread dot */}
+              {chatUser.hasUnreadMessage && (
+                <span className="blinking-dot" title="Unread messages"></span>
+              )}
             </li>
           ))}
         </ul>
