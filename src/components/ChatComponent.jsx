@@ -5,7 +5,7 @@ import SearchUser from './SearchUser';
 import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
 import "../css/chat.css"
-const ChatComponent = ({recentChats}) => {
+const ChatComponent = ({recentChats,setRecentChats}) => {
   const { selectedUser, setSelectedUser } = useAuth();
   const [messageOffset, setMessageOffset] = useState(0);
   const MESSAGE_LIMIT = 10; // same as backend limit
@@ -37,6 +37,15 @@ const handleScroll = (e) => {
     setMessageOffset(messageOffset + MESSAGE_LIMIT);
   }
 };
+const markUserAsRead = (userId) => {
+  setRecentChats((prev) =>
+    prev.map((chat) =>
+      chat.userId === parseInt(userId)
+        ? { ...chat, hasUnreadMessage: false }
+        : chat
+    )
+  );
+};
 
 
     useEffect(() => {
@@ -47,6 +56,13 @@ const handleScroll = (e) => {
   setMessageOffset(0); // Reset offset for new chat
 
   requestMessages(0); // Load first batch
+    setRecentChats(prevChats =>
+    prevChats.map(chat =>
+      chat.userId === selectedUser.userId
+        ? { ...chat, hasUnreadMessage: false }
+        : chat
+    )
+  );
 }, [selectedUser]);
 
     
@@ -65,6 +81,7 @@ const handleScroll = (e) => {
             setMessageOffset={setMessageOffset}
             requestMessages={requestMessages}
             handleScroll={handleScroll}
+            markUserAsRead={markUserAsRead}
           />
         ) : (
           <div className="p-4">Select a user to chat</div>

@@ -70,7 +70,7 @@ export default function Dashboard() {
 
   return (
     <div className="page-container container">
-      <ChatComponent  recentChats={recentChats}/>
+      <ChatComponent  recentChats={recentChats} setRecentChats={setRecentChats}/>
     </div>
   );
 }

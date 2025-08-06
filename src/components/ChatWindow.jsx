@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getPublicKey } from "../helpers/indexedDbUtils";
 import {encryptMessageDual} from '../helpers/messageEncryptionHelpers';
-const ChatWindow = ({ selectedUser, messages, setMessages,requestMessages,setMessageOffset,handleScroll }) => {
+const ChatWindow = ({ selectedUser, messages, setMessages,requestMessages,setMessageOffset,handleScroll,markUserAsRead }) => {
   const [input, setInput] = useState("");
     const { stompClient } = useAuth();
     const { userId } = useAuth();
@@ -52,6 +52,8 @@ const handleReadMessage = (messageId) => {
     stompClient.send("/app/message/read", {}, JSON.stringify({ messageId }));
     console.log("Sent read event for message", messageId);
   }
+
+
 };
 
 
@@ -88,6 +90,13 @@ useEffect(() => {
       handleReadMessage(lastUnread.id);
     }
   }
+
+  //markUserAsRead(selectedUser.userId)
+  console.log("eseEffectRan in window")
+
+   
+
+
 }, [messages]);
   return (
     <div className="flex flex-col h-full max-h-screen p-4 border border-red-300" >

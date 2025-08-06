@@ -4,6 +4,9 @@ import { Stomp } from "@stomp/stompjs";
 import { jwtDecode } from 'jwt-decode';
 import { getPrivateKey } from "../helpers/indexedDbUtils";
 import { decryptMessage } from "../helpers/messageEncryptionHelpers";
+import { useIncomingMessageNotificationSound } from "../helpers/useNotificationSound";
+import { fetchRecentChats } from "../helpers/fetchRecentChats";
+
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
@@ -13,6 +16,7 @@ export function AuthProvider({ children }) {
   const [recentChats, setRecentChats] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const selectedUserRef = useRef(selectedUser);
+  const playIncomingNotificationSound = useIncomingMessageNotificationSound();
   
 
   const userId = token ? parseUserIdFromToken(token) : null;
@@ -63,6 +67,9 @@ export function AuthProvider({ children }) {
           senderId !== parseInt(currentSelectedUser?.userId) &&
           recipientId !== parseInt(currentSelectedUser?.userId)
         ) {
+          // const updatedRecentChats = await fetchRecentChats()
+          // setRecentChats(updatedRecentChats)
+          playIncomingNotificationSound()
           return; // ignore irrelevant messages
         }
     console.log("currentUser",userId,"isMe",me,"senderId",senderId,"recipientId",recipientId,"selcetedUser",currentSelectedUser.userId)
@@ -108,6 +115,7 @@ export function AuthProvider({ children }) {
       client.subscribe(`/topic/cached-messages/${userId}`, (msg) => {
      (async () => {
     const cachedMessages = JSON.parse(msg.body);
+    console.log(cachedMessages,"chacedMessages")
 
     // Load private key once per batch
     const privateKey = await getPrivateKey(userId);
@@ -130,7 +138,11 @@ export function AuthProvider({ children }) {
     );
 
     // Now update your state or UI with decrypted messages
-    setMessages(enrichedMessages);
+   setMessages((prev) =>
+  [...prev, ...enrichedMessages].sort(
+    (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+  )
+);
   })().catch((err) => {
     console.error("Error decrypting cached messages:", err);
   });
@@ -138,8 +150,16 @@ export function AuthProvider({ children }) {
       client.subscribe(`/topic/recent-chats/${userId}`, (message) => {
        
         const updatedChats = JSON.parse(message.body);
-        // console.log("websocet call:", updatedChats)
-        setRecentChats(updatedChats); // this updates the state and refreshes the UI
+         const currentSelectedUser = selectedUserRef.current;
+        console.log("websocet call:", updatedChats)
+          const safeChats = updatedChats.map(chat => {
+          if (chat.userId === currentSelectedUser?.userId?.toString()) {
+            return { ...chat, hasUnreadMessage: false };
+          }
+          return chat;
+        });
+
+        setRecentChats(safeChats);
       });
 
 
