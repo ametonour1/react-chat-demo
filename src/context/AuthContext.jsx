@@ -16,6 +16,8 @@ export function AuthProvider({ children }) {
   const [recentChats, setRecentChats] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const selectedUserRef = useRef(selectedUser);
+  const [activeView, setActiveView] = useState('default');
+
   const playIncomingNotificationSound = useIncomingMessageNotificationSound();
   
 
@@ -230,7 +232,7 @@ useEffect(() => {
 }, [selectedUser]);
 
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser }}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView}}>
       {children}
     </AuthContext.Provider>
   );

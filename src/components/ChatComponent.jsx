@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import SearchUser from './SearchUser';
 import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
+import CreateGroupForm from "./CreateGroupForm";
 import "../css/chat.css"
 const ChatComponent = ({recentChats,setRecentChats}) => {
   const { selectedUser, setSelectedUser } = useAuth();
@@ -14,6 +15,7 @@ const ChatComponent = ({recentChats,setRecentChats}) => {
     const { stompClient } = useAuth();
     const {token} = useAuth()
     const { userId } = useAuth();
+    const {activeView, setActiveView} = useAuth()
     
     function requestMessages(offset) {
       stompClient.send(
@@ -63,6 +65,7 @@ const markUserAsRead = (userId) => {
         : chat
     )
   );
+  setActiveView("chat")
 }, [selectedUser]);
 
     
@@ -73,19 +76,29 @@ const markUserAsRead = (userId) => {
         <ChatList onSelectUser={setSelectedUser} recentChats={recentChats} />
       </div>
       <div className="w-3/4 min-h-0">
-        {selectedUser ? (
-          <ChatWindow
-            selectedUser={selectedUser}
-            messages={messages}
-            setMessages={setMessages}
-            setMessageOffset={setMessageOffset}
-            requestMessages={requestMessages}
-            handleScroll={handleScroll}
-            markUserAsRead={markUserAsRead}
-          />
-        ) : (
-          <div className="p-4">Select a user to chat</div>
-        )}
+       {activeView === 'chat' && selectedUser ? (
+      <ChatWindow
+        selectedUser={selectedUser}
+        messages={messages}
+        setMessages={setMessages}
+        setMessageOffset={setMessageOffset}
+        requestMessages={requestMessages}
+        handleScroll={handleScroll}
+        markUserAsRead={markUserAsRead}
+      />
+    ) : activeView === 'createGroup' ? (
+      <CreateGroupForm onBack={() => setActiveView('default')}  founderUserId={userId} recentChats={recentChats}  />
+    ) : (
+      <div className="p-4 space-y-2">
+        <div>Select a user to chat</div>
+        <button
+          onClick={() => setActiveView('createGroup')}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Create New Group
+        </button>
+      </div>
+    )}
       </div>
     </div>
   );
