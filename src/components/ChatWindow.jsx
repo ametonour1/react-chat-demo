@@ -38,7 +38,7 @@ const ChatWindow = ({ selectedUser, messages, setMessages,requestMessages,setMes
     stompClient.send("/app/chat.send", {}, JSON.stringify(msg));
     setInput("");
     console.log("user",userId,"sendsTo",recipientId)
-    console.log("messages",messages)
+    console.log("message",msg)
 
   };
 

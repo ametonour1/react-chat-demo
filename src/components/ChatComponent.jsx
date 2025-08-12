@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import SearchUser from './SearchUser';
 import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
+import GroupChatWindow from "./GroupChatWindow";
 import CreateGroupForm from "./CreateGroupForm";
 import "../css/chat.css"
 const ChatComponent = ({recentChats,setRecentChats}) => {
@@ -18,12 +19,14 @@ const ChatComponent = ({recentChats,setRecentChats}) => {
     const {activeView, setActiveView} = useAuth()
     
     function requestMessages(offset) {
+      const recipientId = parseInt(selectedUser.userId)
+      console.log(recipientId)
       stompClient.send(
         "/app/get-cached-messages",
         {},
         JSON.stringify({
           senderId: userId,
-          recipientId: selectedUser.userId,
+          recipientId: recipientId,
           offset: offset,
           limit: MESSAGE_LIMIT,
         })
@@ -77,15 +80,27 @@ const markUserAsRead = (userId) => {
       </div>
       <div className="w-3/4 min-h-0">
        {activeView === 'chat' && selectedUser ? (
-      <ChatWindow
-        selectedUser={selectedUser}
-        messages={messages}
-        setMessages={setMessages}
-        setMessageOffset={setMessageOffset}
-        requestMessages={requestMessages}
-        handleScroll={handleScroll}
-        markUserAsRead={markUserAsRead}
-      />
+    selectedUser.type === "USER" ? (
+    <ChatWindow
+      selectedUser={selectedUser}
+      messages={messages}
+      setMessages={setMessages}
+      setMessageOffset={setMessageOffset}
+      requestMessages={requestMessages}
+      handleScroll={handleScroll}
+      markUserAsRead={markUserAsRead}
+    />
+  ) : selectedUser.type === "GROUP" ? (
+    <GroupChatWindow
+      selectedGroup={selectedUser}
+      messages={messages}
+      setMessages={setMessages}
+      setMessageOffset={setMessageOffset}
+      requestMessages={requestMessages}
+      handleScroll={handleScroll}
+      // add any other props GroupChatWindow needs
+    />
+  ) : null
     ) : activeView === 'createGroup' ? (
       <CreateGroupForm onBack={() => setActiveView('default')}  founderUserId={userId} recentChats={recentChats}  />
     ) : (
