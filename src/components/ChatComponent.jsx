@@ -69,6 +69,7 @@ const markUserAsRead = (userId) => {
     )
   );
   setActiveView("chat")
+  console.log("selectedUserLOg,",selectedUser,"Active wiew",activeView)
 }, [selectedUser]);
 
     

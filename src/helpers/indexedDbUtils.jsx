@@ -50,13 +50,12 @@ export async function deletePublicKey(userId) {
   return await db.delete(STORE_NAME, `publicKey_${userId}`);
 }
 
-// Save group chat key with version
-export async function saveGroupChatKey(groupId, userId, encryptedKey, keyVersion) {
+export async function saveGroupChatKey(groupId, userId, encryptedKey, keyVersion, iv) {
   const db = await getDB();
-  const keyData = { encryptedKey, keyVersion };
+  // Include IV in the data to be saved
+  const keyData = { encryptedKey, keyVersion, iv }; 
   await db.put(STORE_NAME, keyData, `groupKey_${groupId}_${userId}`);
 }
-
 // Get group chat key with version
 export async function getGroupChatKey(groupId, userId) {
   const db = await getDB();
