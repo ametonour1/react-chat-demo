@@ -1,5 +1,5 @@
 // Helper: convert base64 string to ArrayBuffer
-function base64ToArrayBuffer(base64) {
+ function base64ToArrayBuffer(base64) {
   const binary_string = window.atob(base64);
   const len = binary_string.length;
   const bytes = new Uint8Array(len);
@@ -10,7 +10,7 @@ function base64ToArrayBuffer(base64) {
 }
 
 // Helper: convert ArrayBuffer to base64 string
-function arrayBufferToBase64(buffer) {
+ function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = '';
   bytes.forEach(b => binary += String.fromCharCode(b));

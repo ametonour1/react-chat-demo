@@ -17,11 +17,14 @@ export function AuthProvider({ children }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const selectedUserRef = useRef(selectedUser);
   const [activeView, setActiveView] = useState('default');
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const playIncomingNotificationSound = useIncomingMessageNotificationSound();
   
 
   const userId = token ? parseUserIdFromToken(token) : null;
+
 
     useEffect(() => {
     if (!token) {
@@ -208,13 +211,18 @@ export function AuthProvider({ children }) {
   }, [token, userId]);
 
 
-  const login = (token) => {
+  const login = (token, userData) => {
+    console.log("userData",userData);
     localStorage.setItem("authToken", token);
+    localStorage.setItem('chat_user', JSON.stringify(userData));
+    setUser(userData);
     setToken(token);
   };
 
   const logout = () => {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("chat_user");
+    setUser(null);
     setToken(null);
   };
 
@@ -224,6 +232,8 @@ export function AuthProvider({ children }) {
   return userId;
 }
 
+
+
 useEffect(() => {
   console.log("Messages updated:", messages);
 }, [messages]);
@@ -231,8 +241,15 @@ useEffect(() => {
   selectedUserRef.current = selectedUser;
 }, [selectedUser]);
 
+useEffect(() => {
+    const savedUser = localStorage.getItem('chat_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView}}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView}}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,6 +6,7 @@ import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
 import GroupChatWindow from "./GroupChatWindow";
 import CreateGroupForm from "./CreateGroupForm";
+import UserProfileBar from "./UserProfileBar";
 import "../css/chat.css"
 const ChatComponent = ({recentChats,setRecentChats}) => {
   const { selectedUser, setSelectedUser } = useAuth();
@@ -15,7 +16,8 @@ const ChatComponent = ({recentChats,setRecentChats}) => {
     const { messages, setMessages } = useAuth(); 
     const { stompClient } = useAuth();
     const {token} = useAuth()
-    const { userId } = useAuth();
+    const { userId, user } = useAuth();
+    
     const {activeView, setActiveView} = useAuth()
     
     function requestMessages(offset) {
@@ -70,12 +72,15 @@ const markUserAsRead = (userId) => {
   );
   setActiveView("chat")
   console.log("selectedUserLOg,",selectedUser,"Active wiew",activeView)
+  console.log("whoAmI,",user)
+
 }, [selectedUser]);
 
     
   return (
     <div className="flex h-full">
       <div className="w-1/4 border-r">
+        <UserProfileBar />
         <SearchUser setSelectedUser={setSelectedUser} />
         <ChatList onSelectUser={setSelectedUser} recentChats={recentChats} />
       </div>

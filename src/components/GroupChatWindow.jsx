@@ -2,12 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
 import {decryptGroupKey } from "../helpers/groupEncryptionService";
+import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
 
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
       const { userId } = useAuth();
       const groupId = selectedGroup.userId;
-      const [aesKey, setAesKey] = useState("")
+      const [groupKey, setGroupKey] = useState(null)
+      const [inputText, setInputText] = useState("");
+      const [isSending, setIsSending] = useState(false);
 
 
   const sendDummyMessage = () => {
@@ -31,12 +34,53 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     console.log("Dummy message sent:", dummyPayload);
   };
 
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!inputText.trim() || !stompClient || !groupKey || isSending) return;
+
+    setIsSending(true);
+    try {
+      // 1. Encrypt the real text using the AES CryptoKey in state
+      const { content, iv } = await encryptGroupMessage(inputText, groupKey);
+
+      // 2. Prepare the payload for Kafka/Spring Boot
+      const payload = {
+        groupChatId: groupId,
+        senderId: userId,
+        content: content, // The encrypted Base64 string
+        iv: iv,          // The unique Base64 IV
+        keyVersion: 1,
+      };
+
+      // 3. Send via STOMP
+      stompClient.send(
+        "/app/group-chat/chat.send",
+        {},
+        JSON.stringify(payload)
+      );
+
+      // 4. Clear input
+      setInputText("");
+    } catch (error) {
+      console.error("Failed to encrypt/send message:", error);
+      alert("Encryption error. Check console.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
    useEffect(() => {
     const fetchKey = async () => {
       try {
+        console.log("groupId,userId", groupId,userId);
+
         const groupChatKey = await getGroupChatKey(groupId,userId);
+        console.log("groupChatKey", groupChatKey);
+
         const decryptedGroupKey = await decryptGroupKey(groupChatKey.encryptedKey, userId)
         console.log("aeskey", decryptedGroupKey);
+        setGroupKey(decryptedGroupKey);
       } catch (error) {
         console.error("Failed to fetch group key:", error);
       }
@@ -46,38 +90,52 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
   }, [groupId]);
       
   return (
-    <div className="h-full flex flex-col p-4">
-      <h2 className="text-xl font-semibold mb-4">Group Chat: {groupId}</h2>
-           <button
-        onClick={sendDummyMessage}
-        className="px-4 py-2 bg-blue-500 text-white rounded mt-2"
-      >
-        Send Dummy Message
-      </button>
+   <div className="h-full flex flex-col p-4 bg-white shadow-lg rounded-lg">
+      <h2 className="text-xl font-semibold mb-4 border-b pb-2">Group Chat: {groupId}</h2>
       
-      {/* Placeholder for messages */}
-      <div className="flex-1 overflow-y-auto border rounded p-2 mb-4 bg-gray-50">
+      {/* Message Display Area */}
+      <div className="flex-1 overflow-y-auto border rounded p-4 mb-4 bg-gray-50 space-y-3">
         {messages && messages.length > 0 ? (
           messages.map((msg, idx) => (
-            <div key={idx} className="mb-2">
-              <b>{msg.senderName || "Unknown"}:</b> {msg.content}
+            <div key={idx} className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}>
+              <span className="text-xs text-gray-500 mb-1">{msg.senderName || `User ${msg.senderId}`}</span>
+              <div className={`px-4 py-2 rounded-2xl max-w-[80%] ${
+                msg.senderId === userId 
+                  ? 'bg-blue-600 text-white rounded-tr-none' 
+                  : 'bg-white border text-gray-800 rounded-tl-none'
+              }`}>
+                {msg.content}
+              </div>
             </div>
           ))
         ) : (
-          <div className="text-gray-400">No messages yet.</div>
+          <div className="text-gray-400 text-center mt-10">No messages yet. Start the conversation!</div>
         )}
       </div>
 
-      {/* Placeholder input */}
-      <div>
+      {/* Message Input Form */}
+      <form onSubmit={handleSendMessage} className="flex gap-2">
         <input
           type="text"
-          placeholder="Type a message..."
-          className="w-full border rounded px-3 py-2"
-          disabled
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder={groupKey ? "Type an encrypted message..." : "Decrypting key..."}
+          className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={!groupKey || isSending}
         />
-        <small className="text-gray-500">Message input will be enabled later</small>
-      </div>
+        <button
+          type="submit"
+          disabled={!groupKey || !inputText.trim() || isSending}
+          className={`px-6 py-2 rounded-full font-medium transition ${
+            !groupKey || isSending 
+              ? 'bg-gray-300 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
+          }`}
+        >
+          {isSending ? "..." : "Send"}
+        </button>
+      </form>
+      {!groupKey && <small className="text-red-500 mt-2">Waiting for group encryption key...</small>}
     </div>
   );
 };

@@ -100,6 +100,34 @@ useEffect(() => {
 }, [messages]);
   return (
     <div className="flex flex-col h-full max-h-screen p-4 border border-red-300" >
+      <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+    <div className="flex items-center space-x-3">
+      {/* Profile Image or Placeholder */}
+      <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+        {selectedUser?.profileImageUrl ? (
+          <img src={selectedUser.profileImageUrl} alt="profile" className="rounded-full" />
+        ) : (
+          selectedUser?.username?.charAt(0).toUpperCase()
+        )}
+      </div>
+      
+      <div>
+        <h3 className="font-semibold text-gray-800">{selectedUser?.username}</h3>
+        <div className="flex items-center text-xs">
+          {/* Online Indicator Dot */}
+          <span className={`h-2 w-2 rounded-full mr-2 ${selectedUser?.online ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+          <span className="text-gray-500">{selectedUser?.online ? 'Active Now' : 'Offline'}</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Optional: Add a "Chat Settings" or "Info" icon here */}
+    <div className="text-gray-400 hover:text-gray-600 cursor-pointer">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+      </svg>
+    </div>
+  </div>
       <div className="flex-1 overflow-y-auto min-h-0 pt-10" onScroll={handleScroll } >
         {messages.map((m, idx) => {
           const isLastSentMessage = idx === lastSentMsgIndex;
