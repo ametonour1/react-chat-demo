@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
-import {decryptGroupKey } from "../helpers/groupEncryptionService";
+import {decryptGroupKey, ensureGroupKey } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
 
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
-      const { userId } = useAuth();
+      const { userId, token } = useAuth();
+      const {groupMessages, setGroupMessages} = useAuth()
       const groupId = selectedGroup.userId;
       const [groupKey, setGroupKey] = useState(null)
       const [inputText, setInputText] = useState("");
@@ -75,10 +76,10 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       try {
         console.log("groupId,userId", groupId,userId);
 
-        const groupChatKey = await getGroupChatKey(groupId,userId);
+        const groupChatKey = await ensureGroupKey(groupId, userId, token)
         console.log("groupChatKey", groupChatKey);
 
-        const decryptedGroupKey = await decryptGroupKey(groupChatKey.encryptedKey, userId)
+        const decryptedGroupKey = groupChatKey;
         console.log("aeskey", decryptedGroupKey);
         setGroupKey(decryptedGroupKey);
       } catch (error) {
@@ -95,8 +96,8 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       
       {/* Message Display Area */}
       <div className="flex-1 overflow-y-auto border rounded p-4 mb-4 bg-gray-50 space-y-3">
-        {messages && messages.length > 0 ? (
-          messages.map((msg, idx) => (
+        {groupMessages && groupMessages.length > 0 ? (
+          groupMessages.map((msg, idx) => (
             <div key={idx} className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}>
               <span className="text-xs text-gray-500 mb-1">{msg.senderName || `User ${msg.senderId}`}</span>
               <div className={`px-4 py-2 rounded-2xl max-w-[80%] ${

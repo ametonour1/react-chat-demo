@@ -4,8 +4,10 @@ import { Stomp } from "@stomp/stompjs";
 import { jwtDecode } from 'jwt-decode';
 import { getPrivateKey } from "../helpers/indexedDbUtils";
 import { decryptMessage } from "../helpers/messageEncryptionHelpers";
+import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import { useIncomingMessageNotificationSound } from "../helpers/useNotificationSound";
 import { fetchRecentChats } from "../helpers/fetchRecentChats";
+import { ensureGroupKey } from "../helpers/groupEncryptionService";
 
 const AuthContext = createContext();
 
@@ -13,12 +15,15 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem("authToken") || null);
   const [stompClient, setStompClient] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [groupMessages, setGroupMessages] = useState([]);
+
   const [recentChats, setRecentChats] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const selectedUserRef = useRef(selectedUser);
   const [activeView, setActiveView] = useState('default');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const currentSubRef = useRef(null);
 
   const playIncomingNotificationSound = useIncomingMessageNotificationSound();
   
@@ -233,6 +238,49 @@ export function AuthProvider({ children }) {
 }
 
 
+const subscribeToGroupLive =  async (groupId) => {
+  if (!stompClient ) return null;
+
+  console.log(`Subscribing to live feed for group: ${groupId}`);
+
+  // This is the "Live" pipe
+
+  const  subscription = stompClient.subscribe(`/topic/group/${groupId}`, async (msg) => {
+    try {
+    console.log("ensure")
+
+      const incoming = JSON.parse(msg.body);
+      console.log("incoming",incoming)
+
+      const groupAesKey = await ensureGroupKey(groupId, userId, token); 
+
+      
+      // Use the AES helper we discussed to decrypt the new message
+      const decryptedText = await decryptGroupAES(
+        incoming.content, 
+        incoming.iv, 
+        groupAesKey
+      );
+
+      // Add to the UI state
+      setGroupMessages((prev) => [
+        ...prev, 
+        { 
+          ...incoming, 
+          content: decryptedText, 
+          me: incoming.senderId === userId 
+        }
+      ]);
+    } catch (err) {
+      console.error("Failed to decrypt live group message:", err);
+    }
+
+    currentSubRef.current = subscription;
+  });
+
+
+};
+
 
 useEffect(() => {
   console.log("Messages updated:", messages);
@@ -248,8 +296,25 @@ useEffect(() => {
     }
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+  let liveSub = null;
+
+  if (selectedUser?.type === "GROUP") {
+
+      liveSub = subscribeToGroupLive(selectedUser.userId);
+ 
+  }
+  return () => {
+    if (currentSubRef.current) {
+      console.log("Unsubscribing from group:", selectedUser?.userId);
+      currentSubRef.current.unsubscribe();
+      currentSubRef.current = null;
+    }
+  };
+}, [selectedUser?.userId]);
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView}}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages}}>
       {children}
     </AuthContext.Provider>
   );

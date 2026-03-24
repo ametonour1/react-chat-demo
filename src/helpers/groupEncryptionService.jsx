@@ -135,3 +135,32 @@ export async function decryptGroupKey(encryptedKeyBase64, userId) {
     throw new Error("Failed to decrypt group key.");
   }
 }
+
+export const ensureGroupKey = async (groupId, userId, token) => {
+
+  // 1. Check IndexedDB first
+  let keyEntry = await getGroupChatKey(groupId, userId);
+
+  // 2. If not in DB, fetch from Server
+  if (!keyEntry) {
+    console.log(`Key missing for group ${groupId}, fetching from server...`);
+    const fetchedResult = await fetchGroupChatKeys(groupId, token, userId);
+    console.log("Raw result from server:", fetchedResult);
+
+
+    keyEntry = Array.isArray(fetchedResult) ? fetchedResult[0] : fetchedResult;
+
+    if (!keyEntry || !keyEntry.encryptedKey) {
+        throw new Error("Could not retrieve group key from server or data is malformed.");
+    }
+    console.log(keyEntry,"keyentry")
+    
+
+    // 3. Save it locally so we don't have to fetch next time
+    await saveGroupChatKey(groupId, userId, keyEntry.encryptedKey, keyEntry.keyVersion, keyEntry.iv);
+  }
+
+ const groupCryptoKey = await decryptGroupKey(keyEntry.encryptedKey, userId);
+
+  return groupCryptoKey;
+};
