@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
 import {decryptGroupKey, ensureGroupKey } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
-
+import {fetchGroupHistory} from "../helpers/groupChatHelpers"
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
       const { userId, token } = useAuth();
@@ -72,22 +72,40 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
   };
 
    useEffect(() => {
-    const fetchKey = async () => {
-      try {
-        console.log("groupId,userId", groupId,userId);
+    // const fetchKey = async () => {
+    //   try {
+    //     console.log("groupId,userId", groupId,userId);
 
-        const groupChatKey = await ensureGroupKey(groupId, userId, token)
-        console.log("groupChatKey", groupChatKey);
+    //     const groupChatKey = await ensureGroupKey(groupId, userId, token)
+    //     console.log("groupChatKey", groupChatKey);
 
-        const decryptedGroupKey = groupChatKey;
-        console.log("aeskey", decryptedGroupKey);
-        setGroupKey(decryptedGroupKey);
-      } catch (error) {
-        console.error("Failed to fetch group key:", error);
-      }
+    //     const decryptedGroupKey = groupChatKey;
+    //     console.log("aeskey", decryptedGroupKey);
+    //     setGroupKey(decryptedGroupKey);
+    //   } catch (error) {
+    //     console.error("Failed to fetch group key:", error);
+    //   }
+    // };
+
+    // fetchKey();
+
+    const initializeChat = async () => {
+        try {
+            // 1. Get the Key first (You need this to read the messages!)
+            const groupChatKey = await ensureGroupKey(groupId, userId, token);
+            setGroupKey(groupChatKey);
+
+            // 2. Now fetch the messages from your new API
+            await fetchGroupHistory(groupId, groupChatKey, token, setGroupMessages, userId);
+
+        } catch (error) {
+            console.error("Failed to initialize chat:", error);
+        }
     };
 
-    fetchKey();
+    if (groupId) {
+        initializeChat();
+    }
   }, [groupId]);
       
   return (

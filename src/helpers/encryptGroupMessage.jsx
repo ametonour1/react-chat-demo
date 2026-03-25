@@ -49,11 +49,27 @@ export async function decryptGroupAES(contentBase64, ivBase64, cryptoKey) {
 
 // HELPER B: Loops through a Redis/History batch
 export async function decryptGroupBatch(messages, cryptoKey, currentUserId) {
+  if (!messages || !Array.isArray(messages)) return [];
+
   return await Promise.all(
-    messages.map(async (m) => ({
-      ...m,
-      content: await decryptGroupAES(m.content, m.iv, cryptoKey),
-      me: m.senderId === currentUserId
-    }))
+    messages.map(async (m) => {
+      try {
+        // ENSURE ORDER: 1. Content, 2. IV, 3. Key
+        const decryptedContent = await decryptGroupAES(
+          m.content, 
+          m.iv, 
+          cryptoKey
+        );
+
+        return {
+          ...m,
+          content: decryptedContent,
+          me: Number(m.senderId) === Number(currentUserId) // Handle potential string/int mismatches
+        };
+      } catch (e) {
+        console.error("Batch item error:", e);
+        return { ...m, content: "[Decryption Error]", me: m.senderId === currentUserId };
+      }
+    })
   );
 }
