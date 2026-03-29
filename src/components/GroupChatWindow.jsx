@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
 import {decryptGroupKey, ensureGroupKey } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
-import {fetchGroupHistory} from "../helpers/groupChatHelpers"
+import {fetchGroupHistory, loadAndSyncGroupChat} from "../helpers/groupChatHelpers"
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
       const { userId, token } = useAuth();
@@ -96,8 +96,8 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
             setGroupKey(groupChatKey);
 
             // 2. Now fetch the messages from your new API
-            await fetchGroupHistory(groupId, groupChatKey, token, setGroupMessages, userId);
-
+            //await fetchGroupHistory(groupId, groupChatKey, token, setGroupMessages, userId);
+             await loadAndSyncGroupChat(groupId, groupChatKey, token, setGroupMessages, userId);
         } catch (error) {
             console.error("Failed to initialize chat:", error);
         }
