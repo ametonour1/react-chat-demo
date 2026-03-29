@@ -45,11 +45,8 @@ export const loadAndSyncGroupChat = async (gid, aesKey, token, setGroupMessages,
             setGroupMessages(decryptedLocal); // Show cached messages immediately
         }
 
-        console.log("localMSG",localMessages)
-        // 2. Fetch updates from server
-        const lastTimestamp = localMessages.length > 0 
-            ? localMessages[localMessages.length - 1].timestamp 
-            : 0;
+        const rawDate = localMessages[localMessages.length - 1].timestamp;
+        const lastTimestamp = new Date(rawDate).toISOString();
         console.log("timeStamp",lastTimestamp)
         
         const serverMessages = await fetchMessagesFromServer(gid, token, lastTimestamp);
