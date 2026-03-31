@@ -1,6 +1,6 @@
 import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import {decryptGroupBatch} from "../helpers/encryptGroupMessage"
-import {getMessagesFromIndexedDB, saveMessagesToIndexedDB, purgeOldMessages} from "../helpers/indexedDbUtils"
+import {getMessagesFromIndexedDB, saveMessagesToIndexedDB, purgeOldMessages, clearGroupMessagesFromIndexedDB} from "../helpers/indexedDbUtils"
 export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, userId) => {
     try {
        
@@ -38,28 +38,49 @@ export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, us
 
 export const loadAndSyncGroupChat = async (gid, aesKey, token, setGroupMessages, userId) => {
     try {
-        // 1. Load what we have locally (Instant render!)
+ 
+        const SYNC_LIMIT = 10;
+
         const localMessages = await getMessagesFromIndexedDB(gid);
         if (localMessages.length > 0) {
             const decryptedLocal = await decryptGroupBatch(localMessages, aesKey, userId);
             setGroupMessages(decryptedLocal); // Show cached messages immediately
         }
 
-        const rawDate = localMessages[localMessages.length - 1].timestamp;
-        const lastTimestamp = new Date(rawDate).toISOString();
-        console.log("timeStamp",lastTimestamp)
+       const hasLocalMessages = localMessages && localMessages.length > 0;
+
+
+        const lastTimestamp = hasLocalMessages
+            ? new Date(localMessages[localMessages.length - 1].timestamp).toISOString()
+            : null;
         
         const serverMessages = await fetchMessagesFromServer(gid, token, lastTimestamp);
 
         // 3. If there are new messages, save and refresh state
         if (serverMessages && serverMessages.length > 0) {
-            await saveMessagesToIndexedDB(gid, serverMessages);
-            await purgeOldMessages(gid, 100); // Keep it under 100
-            
-            // Fetch everything again to ensure perfect order
-            const updatedLocal = await getMessagesFromIndexedDB(gid);
-            const decryptedFinal = await decryptGroupBatch(updatedLocal, aesKey, userId);
-            setGroupMessages(decryptedFinal);
+            if (serverMessages.length >= SYNC_LIMIT){
+
+                await clearGroupMessagesFromIndexedDB(gid);
+                
+                await saveMessagesToIndexedDB(gid, serverMessages);
+                
+                const decryptedNew = await decryptGroupBatch(serverMessages, aesKey, userId);
+                setGroupMessages(decryptedNew);
+                console.log("serverMessages Lenght", serverMessages.length, "threshold exeeded clearing indexDb")
+
+            }else{
+
+                await saveMessagesToIndexedDB(gid, serverMessages);
+
+                await purgeOldMessages(gid, 100); 
+                
+                const updatedLocal = await getMessagesFromIndexedDB(gid);
+                const decryptedFinal = await decryptGroupBatch(updatedLocal, aesKey, userId);
+                setGroupMessages(decryptedFinal);
+                console.log("serverMessages Lenght", serverMessages.length, " inside threshold updating indexDb")
+
+            }
+          
         }
     } catch (error) {
         console.error("Error in loadAndSyncGroupChat:", error);
@@ -98,4 +119,56 @@ export const mergeAndSortMessages = (localList, serverList) => {
     // Convert back to array and sort by timestamp ascending (Oldest to Newest)
     return Array.from(messageMap.values())
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+};
+
+export const fetchHistoricalMessages = async (gid, token, beforeTimestamp) => {
+    // We don't hardcode the limit here, we let the backend use its default (20)
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${gid}/historical?beforeTimestamp=${beforeTimestamp}`;
+    
+    console.log("Fetching historical messages from:", url);
+
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error fetching historical messages: ${response.status}`);
+    }
+
+    return await response.json();
+};
+
+export const loadOlderMessages = async (gid, token, aesKey, userId, groupMessages, setGroupMessages) => {
+    // 1. Safety check: make sure we actually have messages to look back from
+    if (!groupMessages || groupMessages.length === 0) return;
+
+    try {
+        // 2. Grab the timestamp of the OLDEST message currently on screen (index 0)
+        const oldestMessage = groupMessages[0]; 
+        const beforeTimestamp = new Date(oldestMessage.timestamp).toISOString();
+
+        // 3. Call the API helper we just made
+        const olderMessages = await fetchHistoricalMessages(gid, token, beforeTimestamp);
+
+        if (olderMessages && olderMessages.length > 0) {
+            // 4. Decrypt the batch
+            const decryptedOlder = await decryptGroupBatch(olderMessages, aesKey, userId);
+
+            // 5. Prepend them to the state (Oldest go at the top!)
+            setGroupMessages((prev) => [...decryptedOlder, ...prev]);
+
+            // 6. Save them to IndexedDB so they are cached for the next reload
+            await saveMessagesToIndexedDB(gid, olderMessages);
+            
+            console.log(`Successfully loaded ${olderMessages.length} older messages!`);
+        } else {
+            console.log("No more older messages available in the gap.");
+        }
+    } catch (error) {
+        console.error("Error in loadOlderMessages:", error);
+    }
 };

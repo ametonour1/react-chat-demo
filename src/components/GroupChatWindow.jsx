@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
 import {decryptGroupKey, ensureGroupKey } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
-import {fetchGroupHistory, loadAndSyncGroupChat} from "../helpers/groupChatHelpers"
+import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages} from "../helpers/groupChatHelpers"
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
       const { userId, token } = useAuth();
@@ -12,6 +12,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       const [groupKey, setGroupKey] = useState(null)
       const [inputText, setInputText] = useState("");
       const [isSending, setIsSending] = useState(false);
+      const [loadingOlder, setLoadingOlder] = useState(false);
 
 
   const sendDummyMessage = () => {
@@ -71,6 +72,24 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     }
   };
 
+  const handleLoadMoreClick = async () => {
+        if (loadingOlder || groupMessages.length === 0) return;
+        
+        setLoadingOlder(true);
+        console.log("Button clicked! Loading older messages...");
+        
+        await loadOlderMessages(
+            groupId, 
+            token, 
+            groupKey, 
+            userId, 
+            groupMessages, 
+            setGroupMessages
+        );
+        
+        setLoadingOlder(false);
+    };
+
    useEffect(() => {
     // const fetchKey = async () => {
     //   try {
@@ -114,6 +133,24 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       
       {/* Message Display Area */}
       <div className="flex-1 overflow-y-auto border rounded p-4 mb-4 bg-gray-50 space-y-3">
+      {groupMessages.length > 0 && (
+                <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                    <button 
+                        onClick={handleLoadMoreClick}
+                        disabled={loadingOlder}
+                        style={{
+                            padding: '8px 16px',
+                            cursor: loadingOlder ? 'not-allowed' : 'pointer',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px'
+                        }}
+                    >
+                        {loadingOlder ? 'Loading...' : 'Load Older Messages'}
+                    </button>
+                </div>
+            )}
         {groupMessages && groupMessages.length > 0 ? (
           groupMessages.map((msg, idx) => (
             <div key={idx} className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}>

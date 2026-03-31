@@ -137,3 +137,21 @@ export async function purgeOldMessages(groupId, keepCount = 100) {
   }
   await tx.done;
 }
+
+export async function clearGroupMessagesFromIndexedDB(groupId) {
+  const db = await getMessageDB(); 
+  const tx = db.transaction(MESSAGE_STORE, 'readwrite');
+  const store = tx.objectStore(MESSAGE_STORE);
+  const index = store.index('by-group');
+
+  // Find all messages belonging to this group
+  const messages = await index.getAll(groupId);
+
+  // Delete them one by one
+  for (const msg of messages) {
+    await store.delete(msg.id);
+  }
+
+  await tx.done;
+  console.log(`🧹 Cleared all local messages for group ${groupId}`);
+}
