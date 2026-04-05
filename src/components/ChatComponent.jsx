@@ -4,6 +4,9 @@ import { useAuth } from "../context/AuthContext";
 import SearchUser from './SearchUser';
 import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
+import GroupChatWindow from "./GroupChatWindow";
+import CreateGroupForm from "./CreateGroupForm";
+import UserProfileBar from "./UserProfileBar";
 import "../css/chat.css"
 const ChatComponent = ({recentChats,setRecentChats}) => {
   const { selectedUser, setSelectedUser } = useAuth();
@@ -13,15 +16,19 @@ const ChatComponent = ({recentChats,setRecentChats}) => {
     const { messages, setMessages } = useAuth(); 
     const { stompClient } = useAuth();
     const {token} = useAuth()
-    const { userId } = useAuth();
+    const { userId, user } = useAuth();
+    
+    const {activeView, setActiveView} = useAuth()
     
     function requestMessages(offset) {
+      const recipientId = parseInt(selectedUser.userId)
+      console.log(recipientId)
       stompClient.send(
         "/app/get-cached-messages",
         {},
         JSON.stringify({
           senderId: userId,
-          recipientId: selectedUser.userId,
+          recipientId: recipientId,
           offset: offset,
           limit: MESSAGE_LIMIT,
         })
@@ -63,29 +70,56 @@ const markUserAsRead = (userId) => {
         : chat
     )
   );
+  setActiveView("chat")
+  console.log("selectedUserLOg,",selectedUser,"Active wiew",activeView)
+  console.log("whoAmI,",user)
+
 }, [selectedUser]);
 
     
   return (
     <div className="flex h-full">
       <div className="w-1/4 border-r">
+        <UserProfileBar />
         <SearchUser setSelectedUser={setSelectedUser} />
         <ChatList onSelectUser={setSelectedUser} recentChats={recentChats} />
       </div>
       <div className="w-3/4 min-h-0">
-        {selectedUser ? (
-          <ChatWindow
-            selectedUser={selectedUser}
-            messages={messages}
-            setMessages={setMessages}
-            setMessageOffset={setMessageOffset}
-            requestMessages={requestMessages}
-            handleScroll={handleScroll}
-            markUserAsRead={markUserAsRead}
-          />
-        ) : (
-          <div className="p-4">Select a user to chat</div>
-        )}
+       {activeView === 'chat' && selectedUser ? (
+    selectedUser.type === "USER" ? (
+    <ChatWindow
+      selectedUser={selectedUser}
+      messages={messages}
+      setMessages={setMessages}
+      setMessageOffset={setMessageOffset}
+      requestMessages={requestMessages}
+      handleScroll={handleScroll}
+      markUserAsRead={markUserAsRead}
+    />
+  ) : selectedUser.type === "GROUP" ? (
+    <GroupChatWindow
+      selectedGroup={selectedUser}
+      messages={messages}
+      setMessages={setMessages}
+      setMessageOffset={setMessageOffset}
+      requestMessages={requestMessages}
+      handleScroll={handleScroll}
+      // add any other props GroupChatWindow needs
+    />
+  ) : null
+    ) : activeView === 'createGroup' ? (
+      <CreateGroupForm onBack={() => setActiveView('default')}  founderUserId={userId} recentChats={recentChats}  />
+    ) : (
+      <div className="p-4 space-y-2">
+        <div>Select a user to chat</div>
+        <button
+          onClick={() => setActiveView('createGroup')}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Create New Group
+        </button>
+      </div>
+    )}
       </div>
     </div>
   );

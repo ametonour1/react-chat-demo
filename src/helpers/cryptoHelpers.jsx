@@ -116,3 +116,17 @@ export function base64ToUint8Array(base64) {
   }
   return bytes;
 }
+
+export async function importPublicKey(publicKeyBase64) {
+  const publicKeyBuffer = base64ToBuffer(publicKeyBase64);
+  return window.crypto.subtle.importKey(
+    "spki",
+    publicKeyBuffer,
+    {
+      name: "RSA-OAEP",
+      hash: "SHA-256",
+    },
+    true, // extractable
+    ["encrypt"]
+  );
+}

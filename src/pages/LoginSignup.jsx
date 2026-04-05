@@ -74,7 +74,7 @@ const handleLogin = async () => {
     });
     const data = await response.json();
     if (response.ok) {
-      login(data.token);
+      login(data.token, data);
       navigate("/dashboard");
     }
     else {
