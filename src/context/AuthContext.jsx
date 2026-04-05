@@ -8,6 +8,7 @@ import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import { useIncomingMessageNotificationSound } from "../helpers/useNotificationSound";
 import { fetchRecentChats } from "../helpers/fetchRecentChats";
 import { ensureGroupKey } from "../helpers/groupEncryptionService";
+import { subscribeToGroupLiveStatus } from "../helpers/groupChatHelpers";
 
 const AuthContext = createContext();
 
@@ -281,6 +282,33 @@ const subscribeToGroupLive =  async (groupId) => {
 
 };
 
+const handleIncomingReadReceipt = (receipt) => {
+    setGroupMessages((prevMessages) => {
+    // 1. Create a brand new array reference
+    return prevMessages.map((msg) => {
+        
+        // Check if this message needs to be marked as read
+        if (msg.id <= receipt.lastReadMessageId) {
+            const currentReaders = msg.readBy || [];
+            
+            // Only update if the user isn't already in the list
+            if (!currentReaders.includes(receipt.userId)) {
+                
+                // 🚀 THE FIX: Return a BRAND NEW object reference. 
+                // This forces React to notice the change and update the UI!
+                return { 
+                    ...msg, 
+                    readBy: [...currentReaders, receipt.userId] 
+                };
+            }
+        }
+        
+        // If no change, return the original message object reference
+        return msg;
+    });
+});
+};
+
 
 useEffect(() => {
   console.log("Messages updated:", messages);
@@ -303,6 +331,12 @@ useEffect(() => {
   if (selectedUser?.type === "GROUP") {
 
       liveSub = subscribeToGroupLive(selectedUser.userId);
+
+      liveSub = subscribeToGroupLiveStatus(
+            stompClient, 
+            selectedUser.userId, 
+            handleIncomingReadReceipt 
+        );
  
   }
   return () => {

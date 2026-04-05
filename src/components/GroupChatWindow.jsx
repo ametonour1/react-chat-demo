@@ -37,6 +37,30 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
   };
 
 
+  const sendDummyReadReceipt = () => {
+    // If you are using STOMP or Socket.io, use your client's send method.
+    // Example using standard STOMP client:
+    
+    if (stompClient ) {
+        const dummyPayload = {
+            type: "GROUP_READ_RECEIPT", // Hardcoded type
+            userId: 6,                  // Test User ID
+            groupChatId: 33,            // Test Group ID
+            lastReadMessageId: 1001     // Test Message ID
+        };
+
+          stompClient.send(
+          "/app/group-chat/read-receipt",
+          {},
+          JSON.stringify(dummyPayload)
+        );
+
+        console.log("🚀 Dummy read receipt sent to backend!", dummyPayload);
+    } else {
+        console.error("❌ Socket is not connected!");
+    }
+};
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputText.trim() || !stompClient || !groupKey || isSending) return;
@@ -162,13 +186,33 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
               }`}>
                 {msg.content}
               </div>
+              {msg.readBy && msg.readBy.length > 0 && (
+            <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+              {/* Double checkmark icon */}
+              <span className="text-blue-500">✓✓</span> 
+              <span>Read by: {msg.readBy.map(id => `User ${id}`).join(', ')}</span>
+            </div>
+          )}
             </div>
           ))
         ) : (
           <div className="text-gray-400 text-center mt-10">No messages yet. Start the conversation!</div>
         )}
       </div>
-
+      <button 
+            onClick={sendDummyReadReceipt}
+            style={{ 
+                padding: '10px', 
+                backgroundColor: '#007bff', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '5px',
+                cursor: 'pointer',
+                margin: '10px'
+            }}
+        >
+            🧪 Test Read Receipt (Simulate Msg 1002)
+        </button>
       {/* Message Input Form */}
       <form onSubmit={handleSendMessage} className="flex gap-2">
         <input

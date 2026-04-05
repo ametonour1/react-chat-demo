@@ -172,3 +172,39 @@ export const loadOlderMessages = async (gid, token, aesKey, userId, groupMessage
         console.error("Error in loadOlderMessages:", error);
     }
 };
+
+/**
+ * Subscribes to live read receipt updates for a specific group chat.
+ * * @param {Object} stompClient - Your active, connected STOMP client instance.
+ * @param {string|number} groupChatId - The ID of the group chat to listen to.
+ * @param {Function} onReceiptReceived - Callback function to run when an event arrives.
+ * @returns {Object|null} The subscription object (so we can unsubscribe later!), or null.
+ */
+export const subscribeToGroupLiveStatus = (stompClient, groupChatId, onReceiptReceived) => {
+    
+    if (!stompClient || !stompClient.connected) {
+        console.warn("⚠️ Cannot subscribe to status updates: Socket is not connected.");
+        return null;
+    }
+
+    const topic = `/topic/group/${groupChatId}/read-status`;
+    console.log(`🔌 Subscribing to live read receipts on: ${topic}`);
+
+
+    const subscription = stompClient.subscribe(topic, (message) => {
+        try {
+            const payload = JSON.parse(message.body);
+            console.log("group message status payload", payload);
+
+            
+           
+            if (payload.type === "GROUP_READ_RECEIPT") {
+                onReceiptReceived(payload);
+            }
+        } catch (error) {
+            console.error("❌ Failed to parse live read receipt payload:", error);
+        }
+    });
+
+    return subscription;
+};
