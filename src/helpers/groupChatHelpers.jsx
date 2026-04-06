@@ -208,3 +208,75 @@ export const subscribeToGroupLiveStatus = (stompClient, groupChatId, onReceiptRe
 
     return subscription;
 };
+
+/**
+ * Fetches group members from the backend and updates the React state.
+ * * @param {string|number} groupId - The ID of the group chat.
+ * @param {string} token - The user's JWT auth token.
+ * @param {function} setGroupMembers - The React state setter function.
+ */
+export const loadGroupMembers = async (groupId, token, setGroupMembers) => {
+    if (!groupId || !token) {
+        console.warn("⚠️ loadGroupMembers called without a valid groupId or token.");
+        return;
+    }
+
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/members`;;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const members = await response.json();
+        
+       
+        setGroupMembers(members);
+        
+        console.log(`👥 Successfully loaded ${members.length} members for group ${groupId}`);
+    } catch (error) {
+        console.error(`❌ Failed to fetch members for group ${groupId}:`, error);
+   
+    }
+};
+
+export const fetchReadCursors = async (groupId, token, setGroupReadCursors) => {
+    if (!groupId || !token) {
+        console.warn("⚠️ loadGroupMembers called without a valid groupId or token.");
+        return;
+    }
+
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/read-cursors`;;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const cursors = await response.json();
+        
+        // Populate the React state with the returned array!
+        setGroupReadCursors(cursors);
+        
+        console.log(`👥 Successfully loaded ${cursors.length} members for group ${groupId}`);
+    } catch (error) {
+        console.error(`❌ Failed to fetch members for group ${groupId}:`, error);
+        // Optional: you could call setGroupMembers([]) here to reset it on failure
+    }
+};

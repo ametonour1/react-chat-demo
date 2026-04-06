@@ -1,18 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState , useRef} from "react";
 import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
 import {decryptGroupKey, ensureGroupKey } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
-import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages} from "../helpers/groupChatHelpers"
+import {useReadReceiptTrigger} from "../helpers/useReadReceiptTrigger"
+import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors} from "../helpers/groupChatHelpers"
+import {GroupMessage} from "./GroupMessage"
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
-      const { userId, token } = useAuth();
+      const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers } = useAuth();
       const {groupMessages, setGroupMessages} = useAuth()
       const groupId = selectedGroup.userId;
       const [groupKey, setGroupKey] = useState(null)
       const [inputText, setInputText] = useState("");
       const [isSending, setIsSending] = useState(false);
       const [loadingOlder, setLoadingOlder] = useState(false);
+      const lastEmittedMessageId = useRef(null);
+      
 
 
   const sendDummyMessage = () => {
@@ -37,25 +41,27 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
   };
 
 
-  const sendDummyReadReceipt = () => {
+  const emitReadReceipt = (messageId) => {
     // If you are using STOMP or Socket.io, use your client's send method.
     // Example using standard STOMP client:
+
+    if (lastEmittedMessageId.current === messageId) return;
     
     if (stompClient ) {
-        const dummyPayload = {
+        const payload = {
             type: "GROUP_READ_RECEIPT", // Hardcoded type
-            userId: 6,                  // Test User ID
-            groupChatId: 33,            // Test Group ID
-            lastReadMessageId: 1001     // Test Message ID
+            userId: userId,                  // Test User ID
+            groupChatId: groupId,            // Test Group ID
+            lastReadMessageId: messageId ,    // Test Message ID
         };
 
           stompClient.send(
           "/app/group-chat/read-receipt",
           {},
-          JSON.stringify(dummyPayload)
+          JSON.stringify(payload)
         );
-
-        console.log("🚀 Dummy read receipt sent to backend!", dummyPayload);
+        lastEmittedMessageId.current = messageId;
+        console.log("🚀 Dummy read receipt sent to backend!", payload);
     } else {
         console.error("❌ Socket is not connected!");
     }
@@ -134,12 +140,14 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
 
     const initializeChat = async () => {
         try {
-            // 1. Get the Key first (You need this to read the messages!)
+
             const groupChatKey = await ensureGroupKey(groupId, userId, token);
             setGroupKey(groupChatKey);
 
-            // 2. Now fetch the messages from your new API
-            //await fetchGroupHistory(groupId, groupChatKey, token, setGroupMessages, userId);
+             await loadGroupMembers(groupId,token,setGroupChatMembers)
+
+             await fetchReadCursors(groupId, token, setGroupReadCursors)
+
              await loadAndSyncGroupChat(groupId, groupChatKey, token, setGroupMessages, userId);
         } catch (error) {
             console.error("Failed to initialize chat:", error);
@@ -150,6 +158,8 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
         initializeChat();
     }
   }, [groupId]);
+
+  const setLastMessageRef = useReadReceiptTrigger(groupMessages, emitReadReceipt);
       
   return (
    <div className="h-full flex flex-col p-4 bg-white shadow-lg rounded-lg">
@@ -176,43 +186,30 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
                 </div>
             )}
         {groupMessages && groupMessages.length > 0 ? (
-          groupMessages.map((msg, idx) => (
-            <div key={idx} className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}>
-              <span className="text-xs text-gray-500 mb-1">{msg.senderName || `User ${msg.senderId}`}</span>
-              <div className={`px-4 py-2 rounded-2xl max-w-[80%] ${
-                msg.senderId === userId 
-                  ? 'bg-blue-600 text-white rounded-tr-none' 
-                  : 'bg-white border text-gray-800 rounded-tl-none'
-              }`}>
-                {msg.content}
-              </div>
-              {msg.readBy && msg.readBy.length > 0 && (
-            <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-              {/* Double checkmark icon */}
-              <span className="text-blue-500">✓✓</span> 
-              <span>Read by: {msg.readBy.map(id => `User ${id}`).join(', ')}</span>
-            </div>
-          )}
-            </div>
-          ))
-        ) : (
+          groupMessages.map((msg, idx) => {
+    
+    const readersHere = Object.entries(groupReadCursors)
+      .filter(([userId, lastReadId]) => Number(lastReadId) === Number(msg.id))
+      .map(([userId]) => {
+          // Find the user's name in your existing group members array
+          const member = groupChatMembers.find(m => Number(m.id) === Number(userId));
+          return member ? member.username : `User ${userId}`; // Fallback if name not found
+      });
+    const isLastMessage = idx === groupMessages.length - 1;
+    return (
+      <GroupMessage 
+        key={msg.id || idx} 
+        msg={msg}
+        isOwnMessage={msg.senderId === userId}
+        readers={readersHere}
+        ref={isLastMessage ? setLastMessageRef : null}
+      />
+    );
+  })
+): (
           <div className="text-gray-400 text-center mt-10">No messages yet. Start the conversation!</div>
         )}
       </div>
-      <button 
-            onClick={sendDummyReadReceipt}
-            style={{ 
-                padding: '10px', 
-                backgroundColor: '#007bff', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '5px',
-                cursor: 'pointer',
-                margin: '10px'
-            }}
-        >
-            🧪 Test Read Receipt (Simulate Msg 1002)
-        </button>
       {/* Message Input Form */}
       <form onSubmit={handleSendMessage} className="flex gap-2">
         <input

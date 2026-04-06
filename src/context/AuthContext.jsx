@@ -25,6 +25,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const currentSubRef = useRef(null);
+  const [groupReadCursors, setGroupReadCursors] = useState({});
+  const [groupChatMembers, setGroupChatMembers] = useState({});
+
 
   const playIncomingNotificationSound = useIncomingMessageNotificationSound();
   
@@ -283,32 +286,28 @@ const subscribeToGroupLive =  async (groupId) => {
 };
 
 const handleIncomingReadReceipt = (receipt) => {
-    setGroupMessages((prevMessages) => {
-    // 1. Create a brand new array reference
-    return prevMessages.map((msg) => {
+    
+    
+    setGroupReadCursors((prevCursors) => {
+      
+        const incomingUserId = receipt.userId;
+        const incomingMessageId = Number(receipt.lastReadMessageId);
         
-        // Check if this message needs to be marked as read
-        if (msg.id <= receipt.lastReadMessageId) {
-            const currentReaders = msg.readBy || [];
-            
-            // Only update if the user isn't already in the list
-            if (!currentReaders.includes(receipt.userId)) {
-                
-                // 🚀 THE FIX: Return a BRAND NEW object reference. 
-                // This forces React to notice the change and update the UI!
-                return { 
-                    ...msg, 
-                    readBy: [...currentReaders, receipt.userId] 
-                };
-            }
+  
+        const existingLastRead = prevCursors[incomingUserId];
+        
+
+        if (!existingLastRead || incomingMessageId > existingLastRead) {
+            return {
+                ...prevCursors,
+                [incomingUserId]: incomingMessageId 
+            };
         }
         
-        // If no change, return the original message object reference
-        return msg;
+ 
+        return prevCursors;
     });
-});
 };
-
 
 useEffect(() => {
   console.log("Messages updated:", messages);
@@ -347,8 +346,15 @@ useEffect(() => {
     }
   };
 }, [selectedUser?.userId]);
+
+useEffect(()=>{
+  console.log("group members updated", groupChatMembers)
+  console.log("group messages updated", groupMessages)
+
+},
+[ groupChatMembers, groupMessages])
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages}}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages,groupReadCursors,setGroupReadCursors,groupChatMembers, setGroupChatMembers}}>
       {children}
     </AuthContext.Provider>
   );
