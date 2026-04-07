@@ -2,6 +2,7 @@ import React from 'react';
 
 
 export const GroupMessage = React.memo(({ msg, isOwnMessage, readers, innerRef }) => {
+
   return (
     <div ref={innerRef} className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} mb-3`}>
 
@@ -9,7 +10,6 @@ export const GroupMessage = React.memo(({ msg, isOwnMessage, readers, innerRef }
       <span className="text-xs text-gray-500 mb-1">
         {msg.senderName || `User ${msg.senderId}`}
       </span>
-      
       {/* Message Bubble */}
       <div className={`px-4 py-2 rounded-2xl max-w-[80%] ${
         isOwnMessage 

@@ -1,45 +1,40 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
-export const useReadReceiptTrigger = (messages, onVisible) => {
+export const useReadReceiptTrigger = (messages, onVisible, currentUserId) => {
     const observer = useRef(null);
+    const lastEmittedId = useRef(null); // 📓 This remembers the last message we successfully sent
 
-    useEffect(() => {
-        if (!messages || messages.length === 0) return;
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const lastMessageId = lastMessage?.id;
+    const senderId = lastMessage?.senderId;
 
-        // 1. Clean up any previous observer
+    const setLastMessageRef = useCallback((node) => {
         if (observer.current) observer.current.disconnect();
 
-        // 2. Create the observer
-        observer.current = new IntersectionObserver((entries) => {
-            const lastMessageEntry = entries[0];
-            
-            if (lastMessageEntry.isIntersecting) {
-                const lastMessage = messages[messages.length - 1];
-                onVisible(lastMessage.id);
-            }
-        }, { threshold: 0.5 });
+        if (node && lastMessageId) {
+            observer.current = new IntersectionObserver((entries) => {
+                const isVisible = entries[0].isIntersecting;
+                
+                // 🛡️ THE TRIPLE CHECK:
+                // 1. Is it visible?
+                // 2. Is it NOT my own message?
+                // 3. Have I NOT already sent a receipt for this specific ID?
+                if (isVisible && 
+                    senderId !== currentUserId && 
+                    lastEmittedId.current !== lastMessageId
+                ) {
+                    console.log("✅ New message discovered! Emitting:", lastMessageId);
+                    
+                    onVisible(lastMessageId);
+                    
+                    // ✍️ Save this ID so we don't spam the server for this same message again
+                    lastEmittedId.current = lastMessageId;
+                }
+            }, { threshold: 0.1 });
 
-        const lastMessageId = messages[messages.length - 1].id;
-        const elementId = `message-${lastMessageId}`;
+            observer.current.observe(node);
+        }
+    }, [lastMessageId, senderId, currentUserId, onVisible]);
 
-        // 🚀 BUG FIX: Give React a split second to render the DOM element before searching for it
-        const timer = setTimeout(() => {
-            const element = document.getElementById(elementId);
-            console.log("element",element)
-            
-            if (element && observer.current) {
-                observer.current.observe(element);
-            } else {
-                console.warn(`⚠️ Could not find DOM element with ID: ${elementId}`);
-            }
-        }, 50); // 50ms is plenty of time for a browser paint
-
-        // Cleanup
-        return () => {
-            clearTimeout(timer);
-            if (observer.current) observer.current.disconnect();
-        };
-        
-    // 🚀 BUG FIX: Added onVisible to dependencies so it never gets stale!
-    }, [messages, onVisible]); 
+    return setLastMessageRef;
 };

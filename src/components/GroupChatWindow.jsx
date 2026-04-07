@@ -15,8 +15,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       const [inputText, setInputText] = useState("");
       const [isSending, setIsSending] = useState(false);
       const [loadingOlder, setLoadingOlder] = useState(false);
-      const lastEmittedMessageId = useRef(null);
-      
+
 
 
   const sendDummyMessage = () => {
@@ -45,7 +44,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     // If you are using STOMP or Socket.io, use your client's send method.
     // Example using standard STOMP client:
 
-    if (lastEmittedMessageId.current === messageId) return;
+
     
     if (stompClient ) {
         const payload = {
@@ -60,7 +59,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
           {},
           JSON.stringify(payload)
         );
-        lastEmittedMessageId.current = messageId;
+ 
         console.log("🚀 Dummy read receipt sent to backend!", payload);
     } else {
         console.error("❌ Socket is not connected!");
@@ -121,22 +120,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     };
 
    useEffect(() => {
-    // const fetchKey = async () => {
-    //   try {
-    //     console.log("groupId,userId", groupId,userId);
-
-    //     const groupChatKey = await ensureGroupKey(groupId, userId, token)
-    //     console.log("groupChatKey", groupChatKey);
-
-    //     const decryptedGroupKey = groupChatKey;
-    //     console.log("aeskey", decryptedGroupKey);
-    //     setGroupKey(decryptedGroupKey);
-    //   } catch (error) {
-    //     console.error("Failed to fetch group key:", error);
-    //   }
-    // };
-
-    // fetchKey();
+ 
 
     const initializeChat = async () => {
         try {
@@ -157,9 +141,20 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     if (groupId) {
         initializeChat();
     }
+
+    return () => {
+        console.log("🧹 Cleaning up old group data for ID:", groupId);
+        setGroupMessages([]);         // Clear messages
+        setGroupChatMembers([]);      // Clear member list
+        setGroupReadCursors({});      // Clear read status icons
+        setGroupKey(null);            // Clear security key
+        
+        // If you have a state for typing indicators, clear that too!
+        // setTypingUsers([]); 
+    };
   }, [groupId]);
 
-  const setLastMessageRef = useReadReceiptTrigger(groupMessages, emitReadReceipt);
+  const setLastMessageRef = useReadReceiptTrigger(groupMessages, emitReadReceipt,userId);
       
   return (
    <div className="h-full flex flex-col p-4 bg-white shadow-lg rounded-lg">
@@ -202,7 +197,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
         msg={msg}
         isOwnMessage={msg.senderId === userId}
         readers={readersHere}
-        ref={isLastMessage ? setLastMessageRef : null}
+        innerRef={isLastMessage ? setLastMessageRef : null}
       />
     );
   })
