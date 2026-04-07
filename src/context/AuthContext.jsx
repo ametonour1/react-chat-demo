@@ -8,6 +8,7 @@ import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import { useIncomingMessageNotificationSound } from "../helpers/useNotificationSound";
 import { fetchRecentChats } from "../helpers/fetchRecentChats";
 import { ensureGroupKey } from "../helpers/groupEncryptionService";
+import { subscribeToGroupLiveStatus } from "../helpers/groupChatHelpers";
 
 const AuthContext = createContext();
 
@@ -24,6 +25,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const currentSubRef = useRef(null);
+  const [groupReadCursors, setGroupReadCursors] = useState({});
+  const [groupChatMembers, setGroupChatMembers] = useState({});
+
 
   const playIncomingNotificationSound = useIncomingMessageNotificationSound();
   
@@ -281,6 +285,29 @@ const subscribeToGroupLive =  async (groupId) => {
 
 };
 
+const handleIncomingReadReceipt = (receipt) => {
+    
+    
+    setGroupReadCursors((prevCursors) => {
+      
+        const incomingUserId = receipt.userId;
+        const incomingMessageId = Number(receipt.lastReadMessageId);
+        
+  
+        const existingLastRead = prevCursors[incomingUserId];
+        
+
+        if (!existingLastRead || incomingMessageId > existingLastRead) {
+            return {
+                ...prevCursors,
+                [incomingUserId]: incomingMessageId 
+            };
+        }
+        
+ 
+        return prevCursors;
+    });
+};
 
 useEffect(() => {
   console.log("Messages updated:", messages);
@@ -303,6 +330,12 @@ useEffect(() => {
   if (selectedUser?.type === "GROUP") {
 
       liveSub = subscribeToGroupLive(selectedUser.userId);
+
+      liveSub = subscribeToGroupLiveStatus(
+            stompClient, 
+            selectedUser.userId, 
+            handleIncomingReadReceipt 
+        );
  
   }
   return () => {
@@ -313,8 +346,15 @@ useEffect(() => {
     }
   };
 }, [selectedUser?.userId]);
+
+useEffect(()=>{
+  console.log("group members updated", groupChatMembers)
+  console.log("group messages updated", groupMessages)
+
+},
+[ groupChatMembers, groupMessages])
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages}}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages,groupReadCursors,setGroupReadCursors,groupChatMembers, setGroupChatMembers}}>
       {children}
     </AuthContext.Provider>
   );

@@ -172,3 +172,111 @@ export const loadOlderMessages = async (gid, token, aesKey, userId, groupMessage
         console.error("Error in loadOlderMessages:", error);
     }
 };
+
+/**
+ * Subscribes to live read receipt updates for a specific group chat.
+ * * @param {Object} stompClient - Your active, connected STOMP client instance.
+ * @param {string|number} groupChatId - The ID of the group chat to listen to.
+ * @param {Function} onReceiptReceived - Callback function to run when an event arrives.
+ * @returns {Object|null} The subscription object (so we can unsubscribe later!), or null.
+ */
+export const subscribeToGroupLiveStatus = (stompClient, groupChatId, onReceiptReceived) => {
+    
+    if (!stompClient || !stompClient.connected) {
+        console.warn("⚠️ Cannot subscribe to status updates: Socket is not connected.");
+        return null;
+    }
+
+    const topic = `/topic/group/${groupChatId}/read-status`;
+    console.log(`🔌 Subscribing to live read receipts on: ${topic}`);
+
+
+    const subscription = stompClient.subscribe(topic, (message) => {
+        try {
+            const payload = JSON.parse(message.body);
+            console.log("group message status payload", payload);
+
+            
+           
+            if (payload.type === "GROUP_READ_RECEIPT") {
+                onReceiptReceived(payload);
+            }
+        } catch (error) {
+            console.error("❌ Failed to parse live read receipt payload:", error);
+        }
+    });
+
+    return subscription;
+};
+
+/**
+ * Fetches group members from the backend and updates the React state.
+ * * @param {string|number} groupId - The ID of the group chat.
+ * @param {string} token - The user's JWT auth token.
+ * @param {function} setGroupMembers - The React state setter function.
+ */
+export const loadGroupMembers = async (groupId, token, setGroupMembers) => {
+    if (!groupId || !token) {
+        console.warn("⚠️ loadGroupMembers called without a valid groupId or token.");
+        return;
+    }
+
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/members`;;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const members = await response.json();
+        
+       
+        setGroupMembers(members);
+        
+        console.log(`👥 Successfully loaded ${members.length} members for group ${groupId}`);
+    } catch (error) {
+        console.error(`❌ Failed to fetch members for group ${groupId}:`, error);
+   
+    }
+};
+
+export const fetchReadCursors = async (groupId, token, setGroupReadCursors) => {
+    if (!groupId || !token) {
+        console.warn("⚠️ loadGroupMembers called without a valid groupId or token.");
+        return;
+    }
+
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/read-cursors`;;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const cursors = await response.json();
+        
+        // Populate the React state with the returned array!
+        setGroupReadCursors(cursors);
+        
+        console.log(`👥 Successfully loaded ${cursors.length} members for group ${groupId}`);
+    } catch (error) {
+        console.error(`❌ Failed to fetch members for group ${groupId}:`, error);
+        // Optional: you could call setGroupMembers([]) here to reset it on failure
+    }
+};
