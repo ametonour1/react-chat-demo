@@ -6,6 +6,8 @@ import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
 import {useReadReceiptTrigger} from "../helpers/useReadReceiptTrigger"
 import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors} from "../helpers/groupChatHelpers"
 import {GroupMessage} from "./GroupMessage"
+import {GroupSettingsOverlay} from "./GroupSettingsOverlay"
+import { Settings } from 'lucide-react';
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
       const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers } = useAuth();
@@ -15,6 +17,8 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       const [inputText, setInputText] = useState("");
       const [isSending, setIsSending] = useState(false);
       const [loadingOlder, setLoadingOlder] = useState(false);
+      const [showSettings, setShowSettings] = useState(false);
+      const isAdmin = groupChatMembers?.find(m => Number(m.id) === Number(userId))?.admin || false;
 
 
 
@@ -118,10 +122,20 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
         
         setLoadingOlder(false);
     };
+  const handleKickUser = async (targetUserId) => {
+      const confirmKick = window.confirm("Are you sure you want to kick this user? This will trigger a security key rotation.");
+      if (!confirmKick) return;
+
+      try {
+          console.log("🚀 Starting Key Rotation and Kick for User:", targetUserId);
+          // This is where we will call our Crypto Rotate & API logic
+      } catch (error) {
+          console.error("Kick failed:", error);
+      }
+  };
 
    useEffect(() => {
  
-
     const initializeChat = async () => {
         try {
 
@@ -155,10 +169,38 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
   }, [groupId]);
 
   const setLastMessageRef = useReadReceiptTrigger(groupMessages, emitReadReceipt,userId);
-      
+  //uncomment later
+  // const isAdmin = groupChatMembers.find(m => Number(m.id) === Number(userId))?.admin;
+
+
   return (
    <div className="h-full flex flex-col p-4 bg-white shadow-lg rounded-lg">
-      <h2 className="text-xl font-semibold mb-4 border-b pb-2">Group Chat: {groupId}</h2>
+
+      {/* Enhanced Header */}
+    <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <div>
+            <h2 className="text-xl font-semibold">Group Chat: {groupId}</h2>
+            <p className="text-xs text-gray-500">{groupChatMembers.length} members</p>
+        </div>
+        
+        {/* The Menu Toggle */}
+        <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 hover:bg-gray-100 rounded-full transition"
+        >
+            <Settings size={20} className="text-gray-600" />
+        </button>
+    </div>
+
+    {/* Settings Overlay / Sidebar */}
+    {showSettings && (
+        <GroupSettingsOverlay 
+            members={groupChatMembers} 
+            isAdmin={isAdmin}
+            onKick={handleKickUser}
+            onClose={() => setShowSettings(false)}
+        />
+    )}
       
       {/* Message Display Area */}
       <div className="flex-1 overflow-y-auto border rounded p-4 mb-4 bg-gray-50 space-y-3">

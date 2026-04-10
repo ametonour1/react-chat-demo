@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const currentSubRef = useRef(null);
   const [groupReadCursors, setGroupReadCursors] = useState({});
-  const [groupChatMembers, setGroupChatMembers] = useState({});
+  const [groupChatMembers, setGroupChatMembers] = useState([]);
 
 
   const playIncomingNotificationSound = useIncomingMessageNotificationSound();
