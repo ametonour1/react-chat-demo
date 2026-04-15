@@ -1,4 +1,4 @@
-import {saveGroupChatKey,  getGroupChatKey, getPrivateKey} from "./indexedDbUtils"
+import {saveGroupChatKey,  getGroupChatKey, getPrivateKey, getAllLocalGroupKeys} from "./indexedDbUtils"
 import {
   bufferToBase64,
   base64ToBuffer,
@@ -163,4 +163,42 @@ export const ensureGroupKey = async (groupId, userId, token) => {
  const groupCryptoKey = await decryptGroupKey(keyEntry.encryptedKey, userId);
 
   return groupCryptoKey;
+};
+
+export const ensureKeyring = async (groupId, userId, token, latestVersion) => {
+    const keyring = {};
+    let missingAny = false;
+
+    // 1. Precise Point-Lookups
+    // We only look for the keys we KNOW we need for THIS group.
+    const latestKey = await getGroupChatKey(groupId,userId,latestVersion)
+
+     if (!latestKey) {
+        const serverKeys = await fetchGroupChatKeys(groupId, token, userId);
+        
+        for (const k of serverKeys) {
+            await saveGroupChatKey(groupId, userId, k.encryptedKey, k.keyVersion, k.iv);
+            const decrypted = await decryptGroupKey(k.encryptedKey, userId);
+            keyring[k.keyVersion] = decrypted;
+        }
+        console.log("there are missing keys from keyring")
+    }
+
+    for (let v = latestVersion; v > 0; v--) {
+        const localEntry = await getGroupChatKey(groupId, userId, v);
+        console.log("key num v",v,"key",localEntry)
+
+        
+        if (localEntry) {
+            const decrypted = await decryptGroupKey(localEntry.encryptedKey, userId);
+            keyring[v] = decrypted;
+        } else {
+            // If we are missing even one version, we'll sync with the server
+            // to see if the user is entitled to it.
+            missingAny = true; 
+        }
+    }
+
+
+    return keyring;
 };

@@ -280,3 +280,24 @@ export const fetchReadCursors = async (groupId, token, setGroupReadCursors) => {
         // Optional: you could call setGroupMembers([]) here to reset it on failure
     }
 };
+
+export const fetchGroupMetadata = async (groupId, token) => {
+
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/metadata`;;
+
+    try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+ 
+        const data = await response.json(); 
+        return data;
+    } catch (error) {
+        console.error("Error fetching group metadata:", error);
+        throw error; // Re-throw so the component can handle the error state
+    }
+};

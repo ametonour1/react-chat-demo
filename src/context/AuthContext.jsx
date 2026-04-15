@@ -27,6 +27,11 @@ export function AuthProvider({ children }) {
   const currentSubRef = useRef(null);
   const [groupReadCursors, setGroupReadCursors] = useState({});
   const [groupChatMembers, setGroupChatMembers] = useState([]);
+  const [keyVersion, setKeyVersion] = useState(null);
+  const [keyring, setKeyring] = useState({});
+  const keyringRef = useRef({});
+
+
 
 
   const playIncomingNotificationSound = useIncomingMessageNotificationSound();
@@ -256,7 +261,7 @@ const subscribeToGroupLive =  async (groupId) => {
       const incoming = JSON.parse(msg.body);
       console.log("incoming",incoming)
 
-      const groupAesKey = await ensureGroupKey(groupId, userId, token); 
+      const groupAesKey = keyringRef.current[incoming.keyVersion];
 
       
       // Use the AES helper we discussed to decrypt the new message
@@ -353,8 +358,12 @@ useEffect(()=>{
 
 },
 [ groupChatMembers, groupMessages])
+
+useEffect(() => {
+    keyringRef.current = keyring;
+}, [keyring]);
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages,groupReadCursors,setGroupReadCursors,groupChatMembers, setGroupChatMembers}}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages,groupReadCursors,setGroupReadCursors,groupChatMembers, setGroupChatMembers,keyVersion, setKeyVersion, keyring, setKeyring}}>
       {children}
     </AuthContext.Provider>
   );

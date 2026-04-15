@@ -1,16 +1,16 @@
 import React, { useEffect, useState , useRef} from "react";
 import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
-import {decryptGroupKey, ensureGroupKey } from "../helpers/groupEncryptionService";
+import {decryptGroupKey, ensureGroupKey, ensureKeyring } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
 import {useReadReceiptTrigger} from "../helpers/useReadReceiptTrigger"
-import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors} from "../helpers/groupChatHelpers"
+import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors, fetchGroupMetadata} from "../helpers/groupChatHelpers"
 import {GroupMessage} from "./GroupMessage"
 import {GroupSettingsOverlay} from "./GroupSettingsOverlay"
 import { Settings } from 'lucide-react';
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
-      const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers } = useAuth();
+      const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers, keyVersion, setKeyVersion , keyring, setKeyring} = useAuth();
       const {groupMessages, setGroupMessages} = useAuth()
       const groupId = selectedGroup.userId;
       const [groupKey, setGroupKey] = useState(null)
@@ -139,12 +139,18 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const initializeChat = async () => {
         try {
 
-            const groupChatKey = await ensureGroupKey(groupId, userId, token);
+            // const groupChatKey = await ensureGroupKey(groupId, userId, token);
+            // setGroupKey(groupChatKey);
+            const metadata = await fetchGroupMetadata(groupId, token);
+
+            const keyring = await ensureKeyring(groupId, userId, token, metadata.currentKeyVersion)
+            const groupChatKey = keyring[1]
+ 
+            setKeyring(keyring)
             setGroupKey(groupChatKey);
-
-             await loadGroupMembers(groupId,token,setGroupChatMembers)
-
-             await fetchReadCursors(groupId, token, setGroupReadCursors)
+            setGroupChatMembers(metadata.members);
+            setGroupReadCursors(metadata.readCursors);
+            setKeyVersion(metadata.currentKeyVersion);
 
              await loadAndSyncGroupChat(groupId, groupChatKey, token, setGroupMessages, userId);
         } catch (error) {
@@ -161,8 +167,9 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
         setGroupMessages([]);         // Clear messages
         setGroupChatMembers([]);      // Clear member list
         setGroupReadCursors({});      // Clear read status icons
-        setGroupKey(null);            // Clear security key
-        
+        setGroupKey(null);  
+        setKeyVersion(null)          // Clear security key
+        setKeyring({})
         // If you have a state for typing indicators, clear that too!
         // setTypingUsers([]); 
     };

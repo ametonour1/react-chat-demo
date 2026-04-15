@@ -3,15 +3,29 @@ import { openDB } from 'idb';
 
 const DB_NAME = 'encryptionKeysDB';
 const STORE_NAME = 'keys';
+const GROUP_KEYS_STORE = "group_keys";
 
 const MSG_DB_NAME = 'groupChatHistoryDB';
 const MESSAGE_STORE = 'group_messages';
 
-async function getDB() {
-  return openDB(DB_NAME, 1, {
+// async function getDB() {
+//   return openDB(DB_NAME, 1, {
+//     upgrade(db) {
+//       if (!db.objectStoreNames.contains(STORE_NAME)) {
+//         db.createObjectStore(STORE_NAME);
+//       }
+//     },
+//   });
+// }
+
+export async function getDB() {
+  return openDB(DB_NAME, 2, { // Increment version to 2
     upgrade(db) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(GROUP_KEYS_STORE)) {
+        db.createObjectStore(GROUP_KEYS_STORE, { keyPath: "id" });
       }
     },
   });
@@ -53,16 +67,51 @@ export async function deletePublicKey(userId) {
   return await db.delete(STORE_NAME, `publicKey_${userId}`);
 }
 
-export async function saveGroupChatKey(groupId, userId, encryptedKey, keyVersion, iv) {
+export async function saveGroupChatKey(groupId, userId, encryptedKey, version, iv) {
   const db = await getDB();
-  // Include IV in the data to be saved
-  const keyData = { encryptedKey, keyVersion, iv }; 
-  await db.put(STORE_NAME, keyData, `groupKey_${groupId}_${userId}`);
+  const storageKey = `groupKey_${groupId}_${userId}_${version}`;
+  
+  await db.put(GROUP_KEYS_STORE, { // Pointing to the new store
+    id: storageKey,
+    groupId: Number(groupId),
+    userId: Number(userId),
+    keyVersion: Number(version),
+    encryptedKey,
+    iv
+  });
+}
+export async function getAllLocalGroupKeys(groupId, userId) {
+  const db = await getDB();
+  const allRecords = await db.getAll(STORE_NAME);
+  
+  if (!allRecords) return [];
+
+  const filtered = allRecords.filter(record => {
+    // Check if ID exists and is a string to prevent the 'split' error
+    if (!record || !record.id || typeof record.id !== 'string') {
+      return false;
+    }
+
+    const parts = record.id.split('_'); 
+    
+    // Check if it's actually one of our key records (should have at least 3 parts)
+    if (parts.length < 3) return false;
+
+    const recordGroupId = parts[1];
+    const recordUserId = parts[2];
+
+    return Number(recordGroupId) === Number(groupId) && 
+           Number(recordUserId) === Number(userId);
+  });
+
+  console.log(`IndexedDB: Found ${allRecords} local keys for Group ${groupId}`);
+  return filtered;
 }
 // Get group chat key with version
-export async function getGroupChatKey(groupId, userId) {
+export async function getGroupChatKey(groupId, userId, version) {
   const db = await getDB();
-  return await db.get(STORE_NAME, `groupKey_${groupId}_${userId}`);
+  const storageKey = `groupKey_${groupId}_${userId}_${version}`;
+  return await db.get(GROUP_KEYS_STORE, storageKey);
 }
 
 // Delete group chat key
