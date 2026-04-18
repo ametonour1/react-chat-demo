@@ -75,6 +75,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     if (!inputText.trim() || !stompClient || !groupKey || isSending) return;
 
     setIsSending(true);
+    console.log("groupKey",groupKey)
     try {
       // 1. Encrypt the real text using the AES CryptoKey in state
       const { content, iv } = await encryptGroupMessage(inputText, groupKey);
@@ -85,7 +86,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
         senderId: userId,
         content: content, // The encrypted Base64 string
         iv: iv,          // The unique Base64 IV
-        keyVersion: 1,
+        keyVersion: keyVersion,
       };
 
       // 3. Send via STOMP
@@ -117,7 +118,8 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
             groupKey, 
             userId, 
             groupMessages, 
-            setGroupMessages
+            setGroupMessages,
+            keyring
         );
         
         setLoadingOlder(false);
@@ -139,21 +141,26 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const initializeChat = async () => {
         try {
 
-            // const groupChatKey = await ensureGroupKey(groupId, userId, token);
+             //const groupChatKeyTest = await ensureGroupKey(groupId, userId, token);
+             //console.log("groupChatKeyTest",groupChatKeyTest)
+
             // setGroupKey(groupChatKey);
             const metadata = await fetchGroupMetadata(groupId, token);
 
-            const keyring = await ensureKeyring(groupId, userId, token, metadata.currentKeyVersion)
-            const groupChatKey = keyring[1]
-            console.log("memebrs",metadata.members)
+            const keyring = await ensureKeyring(groupId, userId, token, metadata.currentKeyVersion,setGroupKey)
+          
+            console.log("metadata",metadata)
+
  
             setKeyring(keyring)
-            setGroupKey(groupChatKey);
             setGroupChatMembers(metadata.members);
             setGroupReadCursors(metadata.readCursors);
             setKeyVersion(metadata.currentKeyVersion);
+            console.log("keyring",keyring)
+            const groupChatKey = groupKey
 
-             await loadAndSyncGroupChat(groupId, groupChatKey, token, setGroupMessages, userId);
+
+             await loadAndSyncGroupChat(groupId, groupChatKey, token, setGroupMessages, userId, keyring);
         } catch (error) {
             console.error("Failed to initialize chat:", error);
         }
@@ -238,9 +245,9 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       .map(([userId]) => {
           // Find the user's name in your existing group members array
           const member = groupChatMembers.find(m => Number(m.userId) === Number(userId));
-          console.log("memberUsername",member.username)
+          //console.log("memberUsername",member?.username)
           if (member && member.username) {
-          console.log("Found and returning:", member.username);
+          //console.log("Found and returning:", member?.username);
           return member.username;
           }
 

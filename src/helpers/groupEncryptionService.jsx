@@ -165,16 +165,19 @@ export const ensureGroupKey = async (groupId, userId, token) => {
   return groupCryptoKey;
 };
 
-export const ensureKeyring = async (groupId, userId, token, latestVersion) => {
+export const ensureKeyring = async (groupId, userId, token, latestVersion,setGroupKey) => {
     const keyring = {};
     let missingAny = false;
 
     // 1. Precise Point-Lookups
     // We only look for the keys we KNOW we need for THIS group.
-    const latestKey = await getGroupChatKey(groupId,userId,latestVersion)
+    let latestKey = await getGroupChatKey(groupId,userId,latestVersion)
 
      if (!latestKey) {
         const serverKeys = await fetchGroupChatKeys(groupId, token, userId);
+        latestKey = serverKeys[0];
+
+        
         
         for (const k of serverKeys) {
             await saveGroupChatKey(groupId, userId, k.encryptedKey, k.keyVersion, k.iv);
@@ -183,6 +186,11 @@ export const ensureKeyring = async (groupId, userId, token, latestVersion) => {
         }
         console.log("there are missing keys from keyring")
     }
+        console.log("latestKey", latestKey)
+
+        const decryptedLatestKey = await decryptGroupKey(latestKey.encryptedKey, userId);
+        setGroupKey(decryptedLatestKey)
+    
 
     for (let v = latestVersion; v > 0; v--) {
         const localEntry = await getGroupChatKey(groupId, userId, v);
