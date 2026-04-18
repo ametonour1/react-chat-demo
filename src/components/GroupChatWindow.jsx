@@ -4,7 +4,7 @@ import { getGroupChatKey} from "../helpers/indexedDbUtils"
 import {decryptGroupKey, ensureGroupKey, ensureKeyring } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
 import {useReadReceiptTrigger} from "../helpers/useReadReceiptTrigger"
-import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors, fetchGroupMetadata} from "../helpers/groupChatHelpers"
+import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors, fetchGroupMetadata, removeUserFromGroup} from "../helpers/groupChatHelpers"
 import {GroupMessage} from "./GroupMessage"
 import {GroupSettingsOverlay} from "./GroupSettingsOverlay"
 import { Settings } from 'lucide-react';
@@ -18,7 +18,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       const [isSending, setIsSending] = useState(false);
       const [loadingOlder, setLoadingOlder] = useState(false);
       const [showSettings, setShowSettings] = useState(false);
-      const isAdmin = groupChatMembers?.find(m => Number(m.id) === Number(userId))?.admin || false;
+      const isAdmin = groupChatMembers?.find(m => Number(m.userId) === Number(userId))?.admin || false;
 
 
 
@@ -128,7 +128,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
 
       try {
           console.log("🚀 Starting Key Rotation and Kick for User:", targetUserId);
-          // This is where we will call our Crypto Rotate & API logic
+          removeUserFromGroup(groupChatMembers,targetUserId,groupId,userId, token)
       } catch (error) {
           console.error("Kick failed:", error);
       }
@@ -145,6 +145,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
 
             const keyring = await ensureKeyring(groupId, userId, token, metadata.currentKeyVersion)
             const groupChatKey = keyring[1]
+            console.log("memebrs",metadata.members)
  
             setKeyring(keyring)
             setGroupKey(groupChatKey);
@@ -177,7 +178,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
 
   const setLastMessageRef = useReadReceiptTrigger(groupMessages, emitReadReceipt,userId);
   //uncomment later
-  // const isAdmin = groupChatMembers.find(m => Number(m.id) === Number(userId))?.admin;
+  // const isAdmin = groupChatMembers.find(m => Number(m.userId) === Number(userId))?.admin;
 
 
   return (
@@ -236,8 +237,15 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       .filter(([userId, lastReadId]) => Number(lastReadId) === Number(msg.id))
       .map(([userId]) => {
           // Find the user's name in your existing group members array
-          const member = groupChatMembers.find(m => Number(m.id) === Number(userId));
-          return member ? member.username : `User ${userId}`; // Fallback if name not found
+          const member = groupChatMembers.find(m => Number(m.userId) === Number(userId));
+          console.log("memberUsername",member.username)
+          if (member && member.username) {
+          console.log("Found and returning:", member.username);
+          return member.username;
+          }
+
+          console.log("Mapping to fallback for ID:", userId);
+          return `User ${userId}`;
       });
     const isLastMessage = idx === groupMessages.length - 1;
     return (

@@ -20,7 +20,7 @@ export const GroupSettingsOverlay = ({ members, isAdmin, onKick, onClose }) => {
                     <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Members</h4>
                     <div className="max-h-60 overflow-y-auto">
                         {members.map(member => (
-                            <div key={member.id} className="flex justify-between items-center py-2 group">
+                            <div key={member.userId} className="flex justify-between items-center py-2 group">
                                 <div className="flex flex-col">
                                     <span className="text-sm font-medium">{member.username}</span>
                                     {member.admin && <span className="text-[10px] text-blue-500 font-bold uppercase">Admin</span>}
@@ -29,7 +29,7 @@ export const GroupSettingsOverlay = ({ members, isAdmin, onKick, onClose }) => {
                                 {/* ONLY show kick button if I am Admin AND the person isn't me */}
                                 {isAdmin && !member.admin && (
                                     <button 
-                                        onClick={() => onKick(member.id)}
+                                        onClick={() => onKick(member.userId)}
                                         className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:bg-red-50 rounded transition"
                                         title="Kick User"
                                     >

@@ -1,5 +1,6 @@
 import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import {decryptGroupBatch} from "../helpers/encryptGroupMessage"
+import { createAndEncryptGroupKeys } from "./groupEncryptionService";
 import {getMessagesFromIndexedDB, saveMessagesToIndexedDB, purgeOldMessages, clearGroupMessagesFromIndexedDB} from "../helpers/indexedDbUtils"
 export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, userId) => {
     try {
@@ -283,7 +284,7 @@ export const fetchReadCursors = async (groupId, token, setGroupReadCursors) => {
 
 export const fetchGroupMetadata = async (groupId, token) => {
 
-    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/metadata`;;
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/metadata`;
 
     try {
           const response = await fetch(url, {
@@ -301,3 +302,41 @@ export const fetchGroupMetadata = async (groupId, token) => {
         throw error; // Re-throw so the component can handle the error state
     }
 };
+
+export const removeUserFromGroup = async (allMembers, kickedUserId, groupId, userId, token) =>{
+        const survivors = allMembers.filter(member => member.userId !== kickedUserId);
+
+        const result = await createAndEncryptGroupKeys(survivors, userId);
+
+        console.log("Results after kick", result, "for members",survivors)
+
+        const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/kick`;
+
+        const payload = {
+                kickedUserId: kickedUserId,
+                members: result
+            }
+        try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+            });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to kick member');
+        }
+
+        const data = await response.json();
+        console.log("Backend sync successful:", data.message);
+        
+        return true; 
+    } catch (error) {
+        console.error("Error during kick process:", error);
+        throw error;
+    }
+}
