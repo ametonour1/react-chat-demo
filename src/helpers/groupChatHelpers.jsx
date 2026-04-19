@@ -1,7 +1,7 @@
 import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import {decryptGroupBatch} from "../helpers/encryptGroupMessage"
 import { createAndEncryptGroupKeys } from "./groupEncryptionService";
-import {getMessagesFromIndexedDB, saveMessagesToIndexedDB, purgeOldMessages, clearGroupMessagesFromIndexedDB} from "../helpers/indexedDbUtils"
+import {getMessagesFromIndexedDB, saveMessagesToIndexedDB, purgeOldMessages, clearGroupMessagesFromIndexedDB, deleteGroupKeysLocally,deleteGroupMessagesLocally} from "../helpers/indexedDbUtils"
 export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, userId, keyring) => {
     try {
        
@@ -340,3 +340,20 @@ export const removeUserFromGroup = async (allMembers, kickedUserId, groupId, use
         throw error;
     }
 }
+
+export const handleKickedUser = async (groupId) => {
+ 
+    alert("You have been removed from the group.");
+
+    try {
+        await deleteGroupKeysLocally(groupId); 
+        await deleteGroupMessagesLocally(groupId)
+    } catch (err) {
+        console.error("Cleanup error after kick:", err);
+    }
+
+
+    if (window.location.pathname.includes(`/chat/${groupId}`)) {
+        window.location.replace('/dashboard');
+    }
+};

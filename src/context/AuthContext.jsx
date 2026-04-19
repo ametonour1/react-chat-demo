@@ -8,7 +8,7 @@ import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import { useIncomingMessageNotificationSound } from "../helpers/useNotificationSound";
 import { fetchRecentChats } from "../helpers/fetchRecentChats";
 import { ensureGroupKey, ensureKeyring } from "../helpers/groupEncryptionService";
-import { subscribeToGroupLiveStatus } from "../helpers/groupChatHelpers";
+import { subscribeToGroupLiveStatus, handleKickedUser } from "../helpers/groupChatHelpers";
 
 
 const AuthContext = createContext();
@@ -52,6 +52,7 @@ export function AuthProvider({ children }) {
       return;
     }
   console.log("userId",userId)
+
 
     const socket = new SockJS(`http://localhost:8080/ws?userId=${userId}`);
     const client = Stomp.over(socket);
@@ -354,6 +355,28 @@ const handleIncomingReadReceipt = (receipt) => {
     });
 };
 
+const subscribeToPrivateEvents = (stompClient) => {
+    
+    // Spring magic: /user/queue/... maps to the specific authenticated user
+    stompClient.subscribe('/user/queue/kick', (message) => {
+        const data = JSON.parse(message.body);
+        console.warn("🚨 Kick event received for group:", data.groupId);
+        setSelectedUser(null)
+
+        setActiveView('default')
+
+        handleKickedUser(data.groupId);
+
+    });
+};
+useEffect(() => {
+ 
+    if (stompClient && stompClient.connected) {
+        subscribeToPrivateEvents(stompClient);
+    } else {
+        console.log("Waiting for stompClient to connect...");
+    }
+}, [stompClient, stompClient?.connected]);
 useEffect(() => {
   console.log("Messages updated:", messages);
 }, [messages]);
@@ -367,6 +390,7 @@ useEffect(() => {
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);
+
   }, []);
 
   useEffect(() => {
@@ -381,7 +405,6 @@ useEffect(() => {
             selectedUser.userId, 
             handleIncomingReadReceipt 
         );
- 
   }
   return () => {
     if (currentSubRef.current) {

@@ -19,13 +19,30 @@ const MESSAGE_STORE = 'group_messages';
 // }
 
 export async function getDB() {
-  return openDB(DB_NAME, 2, { // Increment version to 2
-    upgrade(db) {
+  return openDB(DB_NAME, 3, { // Bump to 3 to trigger the upgrade
+    upgrade(db, oldVersion, newVersion, transaction) {
+      // 1. Handle Messages Store
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+        const msgStore = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+        msgStore.createIndex("groupId", "groupId", { unique: false });
+      } else {
+        // If store exists but index doesn't (migration)
+        const msgStore = transaction.objectStore(STORE_NAME);
+        if (!msgStore.indexNames.contains("groupId")) {
+          msgStore.createIndex("groupId", "groupId", { unique: false });
+        }
       }
+
+      // 2. Handle Group Keys Store
       if (!db.objectStoreNames.contains(GROUP_KEYS_STORE)) {
-        db.createObjectStore(GROUP_KEYS_STORE, { keyPath: "id" });
+        const keyStore = db.createObjectStore(GROUP_KEYS_STORE, { keyPath: "id" });
+        keyStore.createIndex("groupId", "groupId", { unique: false });
+      } else {
+        // Migration for existing store
+        const keyStore = transaction.objectStore(GROUP_KEYS_STORE);
+        if (!keyStore.indexNames.contains("groupId")) {
+          keyStore.createIndex("groupId", "groupId", { unique: false });
+        }
       }
     },
   });
@@ -120,15 +137,35 @@ export async function deleteGroupChatKey(groupId, userId) {
   return await db.delete(STORE_NAME, `groupKey_${groupId}_${userId}`);
 }
 
+export const deleteGroupKeysLocally = async (groupId) => {
+  const db = await getDB();
+
+  const tx = db.transaction(GROUP_KEYS_STORE, 'readwrite');
+  const index = tx.store.index('groupId');
+    
+
+  for await (const cursor of index.iterate(groupId)) {
+    cursor.delete();
+  }
+
+  await tx.done;
+  console.log(`✅ Keys for group ${groupId} purged.`);
+};
 export async function getMessageDB() {
-  return openDB(MSG_DB_NAME, 1, {
-    upgrade(db) {
+
+  return openDB(MSG_DB_NAME, 2, {
+    upgrade(db, oldVersion, newVersion, transaction) {
+     
       if (!db.objectStoreNames.contains(MESSAGE_STORE)) {
-        // We use the server's message 'id' as the primary key
         const store = db.createObjectStore(MESSAGE_STORE, { keyPath: 'id' });
-        
-        // CRITICAL: This index allows us to fetch only messages for a specific group!
         store.createIndex('by-group', 'groupId');
+      } else {
+      
+        const store = transaction.objectStore(MESSAGE_STORE);
+        if (!store.indexNames.contains('by-group')) {
+          store.createIndex('by-group', 'groupId');
+          console.log("🛠️ Migration: 'by-group' index created.");
+        }
       }
     },
   });
@@ -204,3 +241,25 @@ export async function clearGroupMessagesFromIndexedDB(groupId) {
   await tx.done;
   console.log(`🧹 Cleared all local messages for group ${groupId}`);
 }
+
+export const deleteGroupMessagesLocally = async (groupId) => {
+  const db = await getMessageDB();
+  const tx = db.transaction(MESSAGE_STORE, 'readwrite');
+  const store = tx.objectStore(MESSAGE_STORE);
+
+  // We scan the store manually to bypass index type-sensitivity
+  let cursor = await store.openCursor();
+  let count = 0;
+
+  while (cursor) {
+    // Use == instead of === to match "123" with 123
+    if (cursor.value.groupId == groupId) {
+      await cursor.delete();
+      count++;
+    }
+    cursor = await cursor.continue();
+  }
+
+  await tx.done;
+  console.log(`🧹 Force Wipe Result: Deleted ${count} messages.`);
+};
