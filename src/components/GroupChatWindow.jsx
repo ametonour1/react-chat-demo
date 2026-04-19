@@ -10,10 +10,9 @@ import {GroupSettingsOverlay} from "./GroupSettingsOverlay"
 import { Settings } from 'lucide-react';
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
-      const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers, keyVersion, setKeyVersion , keyring, setKeyring} = useAuth();
+      const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers, keyVersion, setKeyVersion , keyring, setKeyring, groupKey, setGroupKey} = useAuth();
       const {groupMessages, setGroupMessages} = useAuth()
       const groupId = selectedGroup.userId;
-      const [groupKey, setGroupKey] = useState(null)
       const [inputText, setInputText] = useState("");
       const [isSending, setIsSending] = useState(false);
       const [loadingOlder, setLoadingOlder] = useState(false);
@@ -147,12 +146,12 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
             // setGroupKey(groupChatKey);
             const metadata = await fetchGroupMetadata(groupId, token);
 
-            const keyring = await ensureKeyring(groupId, userId, token, metadata.currentKeyVersion,setGroupKey)
+            const keyring = await ensureKeyring(groupId, userId, token, metadata.currentKeyVersion,setGroupKey, setKeyring)
           
             console.log("metadata",metadata)
 
  
-            setKeyring(keyring)
+            //setKeyring(keyring)
             setGroupChatMembers(metadata.members);
             setGroupReadCursors(metadata.readCursors);
             setKeyVersion(metadata.currentKeyVersion);

@@ -165,7 +165,7 @@ export const ensureGroupKey = async (groupId, userId, token) => {
   return groupCryptoKey;
 };
 
-export const ensureKeyring = async (groupId, userId, token, latestVersion,setGroupKey) => {
+export const ensureKeyring = async (groupId, userId, token, latestVersion,setGroupKey,setKeyring) => {
     const keyring = {};
     let missingAny = false;
 
@@ -190,7 +190,7 @@ export const ensureKeyring = async (groupId, userId, token, latestVersion,setGro
 
         const decryptedLatestKey = await decryptGroupKey(latestKey.encryptedKey, userId);
         setGroupKey(decryptedLatestKey)
-    
+        
 
     for (let v = latestVersion; v > 0; v--) {
         const localEntry = await getGroupChatKey(groupId, userId, v);
@@ -207,6 +207,6 @@ export const ensureKeyring = async (groupId, userId, token, latestVersion,setGro
         }
     }
 
-
+    setKeyring(keyring)
     return keyring;
 };

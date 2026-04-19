@@ -7,8 +7,9 @@ import { decryptMessage } from "../helpers/messageEncryptionHelpers";
 import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import { useIncomingMessageNotificationSound } from "../helpers/useNotificationSound";
 import { fetchRecentChats } from "../helpers/fetchRecentChats";
-import { ensureGroupKey } from "../helpers/groupEncryptionService";
+import { ensureGroupKey, ensureKeyring } from "../helpers/groupEncryptionService";
 import { subscribeToGroupLiveStatus } from "../helpers/groupChatHelpers";
+
 
 const AuthContext = createContext();
 
@@ -27,6 +28,8 @@ export function AuthProvider({ children }) {
   const currentSubRef = useRef(null);
   const [groupReadCursors, setGroupReadCursors] = useState({});
   const [groupChatMembers, setGroupChatMembers] = useState([]);
+  const [groupKey, setGroupKey] = useState(null)
+  
   const [keyVersion, setKeyVersion] = useState(null);
   const [keyring, setKeyring] = useState({});
   const keyringRef = useRef({});
@@ -246,6 +249,26 @@ export function AuthProvider({ children }) {
   return userId;
 }
 
+const processEncryptedMessage = async (incoming, currentKeyring, currentUserId) => {
+    // 1. Get the key for this specific version
+    const groupAesKey = currentKeyring[incoming.keyVersion];
+
+    if (!groupAesKey) {
+      console.log("currentKeyring",currentKeyring)
+        throw new Error(`Missing key for version ${incoming.keyVersion}`);
+    }
+
+    // 2. Decrypt the content
+    const decryptedText = await decryptGroupAES(
+        incoming.content,
+        incoming.iv,
+        groupAesKey
+    );
+
+    // 3. Return the formatted message object
+    return decryptedText;
+};
+
 
 const subscribeToGroupLive =  async (groupId) => {
   if (!stompClient ) return null;
@@ -256,32 +279,49 @@ const subscribeToGroupLive =  async (groupId) => {
 
   const  subscription = stompClient.subscribe(`/topic/group/${groupId}`, async (msg) => {
     try {
-    console.log("ensure")
+        const incoming = JSON.parse(msg.body);
+        console.log("📥 Group Event:", incoming.type || "CHAT_MESSAGE");
 
-      const incoming = JSON.parse(msg.body);
-      console.log("incoming",incoming)
+        switch (incoming.type) {
+            case 'KEY_ROTATION':
+                console.warn("🔐 Security Update: New key version detected:", incoming.newVersion);
+                // Refresh the keyring from the server/Postgres
+                 await ensureKeyring(groupId, userId, token,incoming.newVersion, setGroupKey, setKeyring);
+                
+                // // Update member list UI
+                 setGroupChatMembers((prev) => prev.filter(m => m.userId !== incoming.kickedUserId));
+                 setKeyVersion(incoming.newVersion);
+                break;
 
-      const groupAesKey = keyringRef.current[incoming.keyVersion];
+            case 'MEMBER_JOINED':
+                // logic for new members...
+                break;
 
-      
-      // Use the AES helper we discussed to decrypt the new message
-      const decryptedText = await decryptGroupAES(
-        incoming.content, 
-        incoming.iv, 
-        groupAesKey
-      );
-
-      // Add to the UI state
-      setGroupMessages((prev) => [
-        ...prev, 
-        { 
-          ...incoming, 
-          content: decryptedText, 
-          me: incoming.senderId === userId 
+            default: 
+                // Default case handles standard 'CHAT_MESSAGE'
+                try {
+                    const decryptedText = await processEncryptedMessage(
+                        incoming, 
+                        keyringRef.current, 
+                        userId
+                    );
+                         setGroupMessages((prev) => [
+                            ...prev, 
+                            { 
+                              ...incoming, 
+                              content: decryptedText, 
+                              me: incoming.senderId === userId 
+                            }
+                          ]);
+                } catch (decryptError) {
+                    console.error("Decryption failed. Syncing keys...", decryptError);
+                    // If key is missing, try to sync and retry once
+                    //await ensureKeyring(groupId, incoming.keyVersion);
+                }
+                break;
         }
-      ]);
     } catch (err) {
-      console.error("Failed to decrypt live group message:", err);
+        console.error("Socket processing error:", err);
     }
 
     currentSubRef.current = subscription;
@@ -361,9 +401,10 @@ useEffect(()=>{
 
 useEffect(() => {
     keyringRef.current = keyring;
+    console.log("keyringAtUseeffect")
 }, [keyring]);
   return (
-    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages,groupReadCursors,setGroupReadCursors,groupChatMembers, setGroupChatMembers,keyVersion, setKeyVersion, keyring, setKeyring}}>
+    <AuthContext.Provider value={{ token, login, logout,messages,setMessages,userId,user, recentChats, setRecentChats, isAuthenticated: !!token, stompClient,selectedUser,setSelectedUser ,activeView, setActiveView, groupMessages, setGroupMessages,groupReadCursors,setGroupReadCursors,groupChatMembers, setGroupChatMembers,keyVersion, setKeyVersion, keyring, setKeyring, groupKey, setGroupKey}}>
       {children}
     </AuthContext.Provider>
   );
