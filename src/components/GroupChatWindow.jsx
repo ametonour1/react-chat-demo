@@ -1,20 +1,23 @@
 import React, { useEffect, useState , useRef} from "react";
 import { useAuth } from "../context/AuthContext";
 import { getGroupChatKey} from "../helpers/indexedDbUtils"
-import {decryptGroupKey, ensureGroupKey } from "../helpers/groupEncryptionService";
+import {decryptGroupKey, ensureGroupKey, ensureKeyring } from "../helpers/groupEncryptionService";
 import { encryptGroupMessage } from "../helpers/encryptGroupMessage";
 import {useReadReceiptTrigger} from "../helpers/useReadReceiptTrigger"
-import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors} from "../helpers/groupChatHelpers"
+import {fetchGroupHistory, loadAndSyncGroupChat, loadOlderMessages, loadGroupMembers, fetchReadCursors, fetchGroupMetadata, removeUserFromGroup} from "../helpers/groupChatHelpers"
 import {GroupMessage} from "./GroupMessage"
+import {GroupSettingsOverlay} from "./GroupSettingsOverlay"
+import { Settings } from 'lucide-react';
 const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     const { stompClient } = useAuth();
-      const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers } = useAuth();
+      const { userId, token,groupReadCursors,setGroupReadCursors, groupChatMembers, setGroupChatMembers, keyVersion, setKeyVersion , keyring, setKeyring, groupKey, setGroupKey} = useAuth();
       const {groupMessages, setGroupMessages} = useAuth()
       const groupId = selectedGroup.userId;
-      const [groupKey, setGroupKey] = useState(null)
       const [inputText, setInputText] = useState("");
       const [isSending, setIsSending] = useState(false);
       const [loadingOlder, setLoadingOlder] = useState(false);
+      const [showSettings, setShowSettings] = useState(false);
+      const isAdmin = groupChatMembers?.find(m => Number(m.userId) === Number(userId))?.admin || false;
 
 
 
@@ -71,6 +74,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
     if (!inputText.trim() || !stompClient || !groupKey || isSending) return;
 
     setIsSending(true);
+    console.log("groupKey",groupKey)
     try {
       // 1. Encrypt the real text using the AES CryptoKey in state
       const { content, iv } = await encryptGroupMessage(inputText, groupKey);
@@ -81,7 +85,7 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
         senderId: userId,
         content: content, // The encrypted Base64 string
         iv: iv,          // The unique Base64 IV
-        keyVersion: 1,
+        keyVersion: keyVersion,
       };
 
       // 3. Send via STOMP
@@ -113,26 +117,49 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
             groupKey, 
             userId, 
             groupMessages, 
-            setGroupMessages
+            setGroupMessages,
+            keyring
         );
         
         setLoadingOlder(false);
     };
+  const handleKickUser = async (targetUserId) => {
+      const confirmKick = window.confirm("Are you sure you want to kick this user? This will trigger a security key rotation.");
+      if (!confirmKick) return;
+
+      try {
+          console.log("🚀 Starting Key Rotation and Kick for User:", targetUserId);
+          removeUserFromGroup(groupChatMembers,targetUserId,groupId,userId, token)
+      } catch (error) {
+          console.error("Kick failed:", error);
+      }
+  };
 
    useEffect(() => {
  
-
     const initializeChat = async () => {
         try {
 
-            const groupChatKey = await ensureGroupKey(groupId, userId, token);
-            setGroupKey(groupChatKey);
+             //const groupChatKeyTest = await ensureGroupKey(groupId, userId, token);
+             //console.log("groupChatKeyTest",groupChatKeyTest)
 
-             await loadGroupMembers(groupId,token,setGroupChatMembers)
+            // setGroupKey(groupChatKey);
+            const metadata = await fetchGroupMetadata(groupId, token);
 
-             await fetchReadCursors(groupId, token, setGroupReadCursors)
+            const keyring = await ensureKeyring(groupId, userId, token, metadata.currentKeyVersion,setGroupKey, setKeyring)
+          
+            console.log("metadata",metadata)
 
-             await loadAndSyncGroupChat(groupId, groupChatKey, token, setGroupMessages, userId);
+ 
+            //setKeyring(keyring)
+            setGroupChatMembers(metadata.members);
+            setGroupReadCursors(metadata.readCursors);
+            setKeyVersion(metadata.currentKeyVersion);
+            console.log("keyring",keyring)
+            const groupChatKey = groupKey
+
+
+             await loadAndSyncGroupChat(groupId, groupChatKey, token, setGroupMessages, userId, keyring);
         } catch (error) {
             console.error("Failed to initialize chat:", error);
         }
@@ -147,18 +174,47 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
         setGroupMessages([]);         // Clear messages
         setGroupChatMembers([]);      // Clear member list
         setGroupReadCursors({});      // Clear read status icons
-        setGroupKey(null);            // Clear security key
-        
+        setGroupKey(null);  
+        setKeyVersion(null)          // Clear security key
+        setKeyring({})
         // If you have a state for typing indicators, clear that too!
         // setTypingUsers([]); 
     };
   }, [groupId]);
 
   const setLastMessageRef = useReadReceiptTrigger(groupMessages, emitReadReceipt,userId);
-      
+  //uncomment later
+  // const isAdmin = groupChatMembers.find(m => Number(m.userId) === Number(userId))?.admin;
+
+
   return (
    <div className="h-full flex flex-col p-4 bg-white shadow-lg rounded-lg">
-      <h2 className="text-xl font-semibold mb-4 border-b pb-2">Group Chat: {groupId}</h2>
+
+      {/* Enhanced Header */}
+    <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <div>
+            <h2 className="text-xl font-semibold">Group Chat: {groupId}</h2>
+            <p className="text-xs text-gray-500">{groupChatMembers.length} members</p>
+        </div>
+        
+        {/* The Menu Toggle */}
+        <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 hover:bg-gray-100 rounded-full transition"
+        >
+            <Settings size={20} className="text-gray-600" />
+        </button>
+    </div>
+
+    {/* Settings Overlay / Sidebar */}
+    {showSettings && (
+        <GroupSettingsOverlay 
+            members={groupChatMembers} 
+            isAdmin={isAdmin}
+            onKick={handleKickUser}
+            onClose={() => setShowSettings(false)}
+        />
+    )}
       
       {/* Message Display Area */}
       <div className="flex-1 overflow-y-auto border rounded p-4 mb-4 bg-gray-50 space-y-3">
@@ -187,8 +243,15 @@ const GroupChatWindow = ({ selectedGroup, messages, setMessages }) => {
       .filter(([userId, lastReadId]) => Number(lastReadId) === Number(msg.id))
       .map(([userId]) => {
           // Find the user's name in your existing group members array
-          const member = groupChatMembers.find(m => Number(m.id) === Number(userId));
-          return member ? member.username : `User ${userId}`; // Fallback if name not found
+          const member = groupChatMembers.find(m => Number(m.userId) === Number(userId));
+          //console.log("memberUsername",member?.username)
+          if (member && member.username) {
+          //console.log("Found and returning:", member?.username);
+          return member.username;
+          }
+
+          console.log("Mapping to fallback for ID:", userId);
+          return `User ${userId}`;
       });
     const isLastMessage = idx === groupMessages.length - 1;
     return (

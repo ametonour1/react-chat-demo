@@ -1,7 +1,8 @@
 import { decryptGroupAES } from "../helpers/encryptGroupMessage";
 import {decryptGroupBatch} from "../helpers/encryptGroupMessage"
-import {getMessagesFromIndexedDB, saveMessagesToIndexedDB, purgeOldMessages, clearGroupMessagesFromIndexedDB} from "../helpers/indexedDbUtils"
-export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, userId) => {
+import { createAndEncryptGroupKeys } from "./groupEncryptionService";
+import {getMessagesFromIndexedDB, saveMessagesToIndexedDB, purgeOldMessages, clearGroupMessagesFromIndexedDB, deleteGroupKeysLocally,deleteGroupMessagesLocally} from "../helpers/indexedDbUtils"
+export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, userId, keyring) => {
     try {
        
            const response = await fetch(`${process.env.REACT_APP_API_URL}/group-chats/${gid}/messages?offset=0&limit=20`, {
@@ -22,7 +23,7 @@ export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, us
         }
 
         // 2. Decrypt each message
-        const decryptedMessages = await decryptGroupBatch(encryptedMessages, aesKey ,userId )
+        const decryptedMessages = await decryptGroupBatch(encryptedMessages, aesKey ,userId , keyring)
 
         console.log("Decrypted Messages for UI:", decryptedMessages);
         
@@ -36,14 +37,14 @@ export const fetchGroupHistory = async (gid, aesKey, token, setGroupMessages, us
     }
 };
 
-export const loadAndSyncGroupChat = async (gid, aesKey, token, setGroupMessages, userId) => {
+export const loadAndSyncGroupChat = async (gid, aesKey, token, setGroupMessages, userId, keyring) => {
     try {
  
         const SYNC_LIMIT = 10;
 
         const localMessages = await getMessagesFromIndexedDB(gid);
         if (localMessages.length > 0) {
-            const decryptedLocal = await decryptGroupBatch(localMessages, aesKey, userId);
+            const decryptedLocal = await decryptGroupBatch(localMessages, aesKey, userId, keyring);
             setGroupMessages(decryptedLocal); // Show cached messages immediately
         }
 
@@ -64,7 +65,7 @@ export const loadAndSyncGroupChat = async (gid, aesKey, token, setGroupMessages,
                 
                 await saveMessagesToIndexedDB(gid, serverMessages);
                 
-                const decryptedNew = await decryptGroupBatch(serverMessages, aesKey, userId);
+                const decryptedNew = await decryptGroupBatch(serverMessages, aesKey, userId, keyring);
                 setGroupMessages(decryptedNew);
                 console.log("serverMessages Lenght", serverMessages.length, "threshold exeeded clearing indexDb")
 
@@ -75,7 +76,7 @@ export const loadAndSyncGroupChat = async (gid, aesKey, token, setGroupMessages,
                 await purgeOldMessages(gid, 100); 
                 
                 const updatedLocal = await getMessagesFromIndexedDB(gid);
-                const decryptedFinal = await decryptGroupBatch(updatedLocal, aesKey, userId);
+                const decryptedFinal = await decryptGroupBatch(updatedLocal, aesKey, userId, keyring);
                 setGroupMessages(decryptedFinal);
                 console.log("serverMessages Lenght", serverMessages.length, " inside threshold updating indexDb")
 
@@ -142,7 +143,7 @@ export const fetchHistoricalMessages = async (gid, token, beforeTimestamp) => {
     return await response.json();
 };
 
-export const loadOlderMessages = async (gid, token, aesKey, userId, groupMessages, setGroupMessages) => {
+export const loadOlderMessages = async (gid, token, aesKey, userId, groupMessages, setGroupMessages, keyring) => {
     // 1. Safety check: make sure we actually have messages to look back from
     if (!groupMessages || groupMessages.length === 0) return;
 
@@ -156,7 +157,7 @@ export const loadOlderMessages = async (gid, token, aesKey, userId, groupMessage
 
         if (olderMessages && olderMessages.length > 0) {
             // 4. Decrypt the batch
-            const decryptedOlder = await decryptGroupBatch(olderMessages, aesKey, userId);
+            const decryptedOlder = await decryptGroupBatch(olderMessages, aesKey, userId, keyring);
 
             // 5. Prepend them to the state (Oldest go at the top!)
             setGroupMessages((prev) => [...decryptedOlder, ...prev]);
@@ -278,5 +279,81 @@ export const fetchReadCursors = async (groupId, token, setGroupReadCursors) => {
     } catch (error) {
         console.error(`❌ Failed to fetch members for group ${groupId}:`, error);
         // Optional: you could call setGroupMembers([]) here to reset it on failure
+    }
+};
+
+export const fetchGroupMetadata = async (groupId, token) => {
+
+    const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/metadata`;
+
+    try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+ 
+        const data = await response.json(); 
+        return data;
+    } catch (error) {
+        console.error("Error fetching group metadata:", error);
+        throw error; // Re-throw so the component can handle the error state
+    }
+};
+
+export const removeUserFromGroup = async (allMembers, kickedUserId, groupId, userId, token) =>{
+        const survivors = allMembers.filter(member => member.userId !== kickedUserId);
+
+        const result = await createAndEncryptGroupKeys(survivors, userId);
+
+        console.log("Results after kick", result, "for members",survivors)
+
+        const url = `${process.env.REACT_APP_API_URL}/group-chats/${groupId}/kick`;
+
+        const payload = {
+                kickedUserId: kickedUserId,
+                members: result
+            }
+        try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+            });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to kick member');
+        }
+
+        const data = await response.json();
+        console.log("Backend sync successful:", data.message);
+        
+        return true; 
+    } catch (error) {
+        console.error("Error during kick process:", error);
+        throw error;
+    }
+}
+
+export const handleKickedUser = async (groupId) => {
+ 
+    alert("You have been removed from the group.");
+
+    try {
+        await deleteGroupKeysLocally(groupId); 
+        await deleteGroupMessagesLocally(groupId)
+    } catch (err) {
+        console.error("Cleanup error after kick:", err);
+    }
+
+
+    if (window.location.pathname.includes(`/chat/${groupId}`)) {
+        window.location.replace('/dashboard');
     }
 };

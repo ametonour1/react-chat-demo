@@ -48,17 +48,17 @@ export async function decryptGroupAES(contentBase64, ivBase64, cryptoKey) {
 }
 
 // HELPER B: Loops through a Redis/History batch
-export async function decryptGroupBatch(messages, cryptoKey, currentUserId) {
+export async function decryptGroupBatch(messages, cryptoKey, currentUserId, keyring) {
   if (!messages || !Array.isArray(messages)) return [];
-
   return await Promise.all(
     messages.map(async (m) => {
       try {
+        const versionKey = keyring[m.keyVersion]
         // ENSURE ORDER: 1. Content, 2. IV, 3. Key
         const decryptedContent = await decryptGroupAES(
           m.content, 
           m.iv, 
-          cryptoKey
+          versionKey
         );
 
         return {
